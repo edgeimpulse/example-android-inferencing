@@ -3,23 +3,45 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="1dp">
 
-    <!-- PreviewView for camera feed -->
+    <!-- Camera Preview -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_gravity="center" />
 
-    <!-- TextView for displaying inference results -->
-    <TextView
-        android:id="@+id/resultTextView"
-        android:layout_width="wrap_content"
+<!--    &lt;!&ndash; Processed Image at the Bottom &ndash;&gt;-->
+<!--    <ImageView-->
+<!--        android:id="@+id/processedImageView"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="0dp"-->
+<!--        android:layout_weight="1"-->
+<!--        android:scaleType="fitCenter"-->
+<!--        android:background="@android:color/darker_gray"-->
+<!--        android:layout_marginTop="8dp"/>-->
+
+    <!-- Result Display Frame -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Inference Results"
-        android:textSize="18sp"
-        android:layout_gravity="center"
-        android:layout_marginTop="20dp"/>
+        android:padding="16dp"
+        android:orientation="vertical"
+        android:background="@android:color/holo_blue_light"
+        android:gravity="center"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/resultTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Inference Results"
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            android:gravity="center"
+            android:padding="8dp"/>
+    </LinearLayout>
 
 </LinearLayout>

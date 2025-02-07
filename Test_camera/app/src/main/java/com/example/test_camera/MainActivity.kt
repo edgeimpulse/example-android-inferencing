@@ -171,7 +171,6 @@ class MainActivity : ComponentActivity() {
     // Call the C++ function to process the image and return results
     private external fun passToCpp(imageData: ByteArray): String
     private external fun passToCppDebug(imageData: ByteArray): ByteArray
-    private external fun passToCppDebugSave(imageData: ByteArray): String
 
     // Display results in UI
     private fun displayResults(result: String) {

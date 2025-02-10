@@ -7,7 +7,7 @@ import android.widget.TextView
 import com.example.test_cpp.databinding.ActivityMainBinding
 
 data class InferenceResult(
-    val classification: Map<String, Float>, // Classification labels and values
+    val classification: Map<String, Float>?, // Classification labels and values
     val objectDetections: List<BoundingBox>?, // Object detection results
     val anomalyScore: Float, // Anomaly detection score
     val timing: Timing, // Timing information
@@ -44,19 +44,39 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val result = runInference()
+        if (result == null) {
+            binding.sampleText.text = "Error running inference"
+        } else
+        {
+            val combinedText = StringBuilder()
+            if (result.classification != null) {
+                // Display classification results
+                val classificationText = result.classification.entries.joinToString("\n") {
+                    "${it.key}: ${it.value}"
+                }
+                combinedText.append("Classification:\n$classificationText\n\n")
+            }
+            if (result.objectDetections != null) {
+                // Display object detection results
+                val objectDetectionText = result.objectDetections.joinToString("\n") {
+                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+                }
+                combinedText.append("Object detection:\n$objectDetectionText\n\n")
+            }
+            if (result.anomalyScore != null) {
+                // Display anomaly detection score
+                combinedText.append("Anomaly score:\n${result.anomalyScore}")
+            }
 
-        // Display classification results
-        val classificationText = result.classification.entries.joinToString("\n") {
-            "${it.key}: ${it.value}"
+            binding.sampleText.text = combinedText.toString()
         }
-        binding.sampleText.text = "Classification:\n$classificationText\n\n" +
-                "Anomaly Score:\n ${result.anomalyScore}\n\n"}
+    }
 
     /**
      * A native method that is implemented by the 'test_cpp' native library,
      * which is packaged with this application.
      */
-    external fun runInference(): InferenceResult
+    external fun runInference(): InferenceResult?
 
     companion object {
         // Used to load the 'test_cpp' library on application startup.

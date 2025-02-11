@@ -81,7 +81,7 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     jmethodID floatConstructor = env->GetMethodID(floatClass, "<init>", "(F)V");
     if (!floatConstructor) return nullptr; // Error finding constructor
 
-#if EI_CLASSIFIER_OBJECT_DETECTION == 0
+#if EI_CLASSIFIER_LABEL_COUNT > 0
     // Construct classification map
     jobject classificationMap = env->NewObject(hashMapClass, hashMapInit);
     for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {

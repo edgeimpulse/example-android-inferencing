@@ -61,8 +61,7 @@ Java_com_example_test_1cpp_MainActivity_runInference(
 
     // Get method IDs
     jmethodID resultConstructor = env->GetMethodID(resultClass, "<init>",
-                                                   "(Ljava/util/Map;Ljava/util/List;F"
-                                                   "Lcom/example/test_cpp/Timing;)V");
+                                                   "(Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lcom/example/test_cpp/Timing;)V");
 
     jmethodID boundingBoxConstructor = env->GetMethodID(boundingBoxClass, "<init>",
                                                  "(Ljava/lang/String;FIIII)V");
@@ -79,22 +78,25 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     if (!floatClass) return nullptr;
 
     // Get Float constructor method ID
-        jmethodID floatConstructor = env->GetMethodID(floatClass, "<init>", "(F)V");
-        if (!floatConstructor) return nullptr; // Error finding constructor
+    jmethodID floatConstructor = env->GetMethodID(floatClass, "<init>", "(F)V");
+    if (!floatConstructor) return nullptr; // Error finding constructor
 
+#if EI_CLASSIFIER_OBJECT_DETECTION == 0
     // Construct classification map
-        jobject classificationMap = env->NewObject(hashMapClass, hashMapInit);
-        for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {
-            jstring key = env->NewStringUTF(result.classification[i].label);
-            jobject value = env->NewObject(floatClass, floatConstructor, result.classification[i].value);
+    jobject classificationMap = env->NewObject(hashMapClass, hashMapInit);
+    for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; i++) {
+        jstring key = env->NewStringUTF(result.classification[i].label);
+        jobject value = env->NewObject(floatClass, floatConstructor, result.classification[i].value);
 
-            env->CallObjectMethod(classificationMap, hashMapPut, key, value);
+        env->CallObjectMethod(classificationMap, hashMapPut, key, value);
 
-            // Cleanup local references
-            env->DeleteLocalRef(key);
-            env->DeleteLocalRef(value);
-        }
+        // Cleanup local references
+        env->DeleteLocalRef(key);
+        env->DeleteLocalRef(value);
+    }
+#endif
 
+#if EI_CLASSIFIER_OBJECT_DETECTION == 1
     // Create ArrayList for object detections
     jobject boundingBoxList = env->NewObject(listClass, env->GetMethodID(listClass, "<init>", "()V"));
     for (uint32_t i = 0; i < result.bounding_boxes_count; i++) {
@@ -115,6 +117,54 @@ Java_com_example_test_1cpp_MainActivity_runInference(
         env->DeleteLocalRef(label);
         env->DeleteLocalRef(boundingBoxObj);
     }
+#endif
+
+    // Create HashMap for anomaly values
+    jobject anomalyResultMap = env->NewObject(hashMapClass, hashMapInit);
+
+#if EI_CLASSIFIER_HAS_ANOMALY != 3
+    jobject anomalyString = env->NewStringUTF("anomaly");
+    jobject anomalyValue = env->NewObject(floatClass, floatConstructor, (jfloat)result.anomaly);
+
+    env->CallObjectMethod(anomalyResultMap, hashMapPut, anomalyString, anomnalyValue);
+    env->DeleteLocalRef(anomalyString);
+    env->DeleteLocalRef(anomalyValue);
+#endif
+
+#if EI_CLASSIFIER_HAS_VISUAL_ANOMALY
+    // Create ArrayList for visual anomaly grid cells
+    jobject boundingBoxListAnomaly = env->NewObject(listClass, env->GetMethodID(listClass, "<init>", "()V"));
+    for (uint32_t i = 0; i < result.visual_ad_count; i++) {
+        ei_impulse_result_bounding_box_t bb = result.visual_ad_grid_cells[i];
+
+        jstring label = env->NewStringUTF("anomaly");
+        jobject boundingBoxObj = env->NewObject(boundingBoxClass,
+                                                boundingBoxConstructor,
+                                                label,
+                                                (jfloat)bb.value,
+                                                (jint)bb.x,
+                                                (jint)bb.y,
+                                                (jint)bb.width,
+                                                (jint)bb.height);
+        env->CallBooleanMethod(boundingBoxListAnomaly, listAdd, boundingBoxObj);
+
+        env->DeleteLocalRef(label);
+        env->DeleteLocalRef(boundingBoxObj);
+    }
+
+    jobject maxString = env->NewStringUTF("max");
+    jobject maxValue = env->NewObject(floatClass, floatConstructor, (jfloat)result.visual_ad_result.max_value);
+
+    jobject meanString = env->NewStringUTF("mean");
+    jobject meanValue = env->NewObject(floatClass, floatConstructor, (jfloat)result.visual_ad_result.mean_value);
+
+    env->CallObjectMethod(anomalyResultMap, hashMapPut, maxString, maxValue);
+    env->CallObjectMethod(anomalyResultMap, hashMapPut, meanString, meanValue);
+    env->DeleteLocalRef(meanString);
+    env->DeleteLocalRef(maxString);
+    env->DeleteLocalRef(meanValue);
+    env->DeleteLocalRef(maxValue);
+#endif
 
     // Construct Timing object
     jobject timingObject = env->NewObject(timingClass, timingConstructor,
@@ -129,10 +179,23 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     // Construct InferenceResult object
     jobject inferenceResult = env->NewObject(resultClass,
                                              resultConstructor,
-                                             classificationMap,
+                                             nullptr,
+#if EI_CLASSIFIER_OBJECT_DETECTION == 1
                                              boundingBoxList,
-                                             result.anomaly,
-                                             timingObject);
+#else
+                                             nullptr,
+#endif
+#if EI_CLASSIFIER_HAS_VISUAL_ANOMALY
+                                             boundingBoxListAnomaly,
+#else
+                                             nullptr,
+#endif
+#if EI_CLASSIFIER_HAS_ANOMALY
+                                            anomalyResultMap,
+#else
+                                            nullptr,
+#endif
+                                            timingObject);
 
     return inferenceResult;
 }

@@ -7,10 +7,11 @@ import android.widget.TextView
 import com.example.test_cpp.databinding.ActivityMainBinding
 
 data class InferenceResult(
-    val classification: Map<String, Float>?, // Classification labels and values
-    val objectDetections: List<BoundingBox>?, // Object detection results
-    val anomalyScore: Float, // Anomaly detection score
-    val timing: Timing, // Timing information
+    val classification: Map<String, Float>?,   // Classification labels and values
+    val objectDetections: List<BoundingBox>?,  // Object detection results
+    val visualAnomalyGridCells: List<BoundingBox>?, // Visual anomaly grid
+    val anomalyResult: Map<String, Float>?, // Anomaly values
+    val timing: Timing  // Timing information
 )
 
 data class BoundingBox(
@@ -63,9 +64,19 @@ class MainActivity : AppCompatActivity() {
                 }
                 combinedText.append("Object detection:\n$objectDetectionText\n\n")
             }
-            if (result.anomalyScore != null) {
+            if (result.visualAnomalyGridCells != null) {
+                // Display visual anomaly grid cells
+                val visualAnomalyGridText = result.visualAnomalyGridCells.joinToString("\n") {
+                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+                }
+                val visualAnomalyMax = result.anomalyResult?.getValue("max")
+                val visualAnomalyMean = result.anomalyResult?.getValue("mean")
+                combinedText.append("Visual anomalies:\n$visualAnomalyGridText\n\nVisual anomaly values:\nMean: ${visualAnomalyMean}\nMax: ${visualAnomalyMax}\n\n")
+            }
+            if (result.anomalyResult?.get("anomaly") != null) {
                 // Display anomaly detection score
-                combinedText.append("Anomaly score:\n${result.anomalyScore}")
+                val anomalyScore = result.anomalyResult.get("anomaly")
+                combinedText.append("Anomaly score:\n${anomalyScore}")
             }
 
             binding.sampleText.text = combinedText.toString()

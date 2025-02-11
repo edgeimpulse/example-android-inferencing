@@ -186,15 +186,24 @@ Java_com_example_test_1camera_MainActivity_passToCpp(
     for (uint32_t i = 0; i < result.visual_ad_count; i++) {
         ei_impulse_result_bounding_box_t bb = result.visual_ad_grid_cells[i];
 
+        float x_ratio = 1080 / (float)EI_CLASSIFIER_INPUT_WIDTH;
+        float y_ratio = 2400 / (float)EI_CLASSIFIER_INPUT_HEIGHT;
+        //__android_log_print(ANDROID_LOG_INFO, "MAIN", "x_ratio: %f, y_ratio: %f", x_ratio, y_ratio);
+
+        float x = (float)bb.x * x_ratio;
+        float y = (float)bb.y * y_ratio;
+        float width = (float)bb.width * x_ratio;
+        float height = (float)bb.height * y_ratio;
+
         jstring label = env->NewStringUTF("anomaly");
         jobject boundingBoxObj = env->NewObject(boundingBoxClass,
                                                 boundingBoxConstructor,
                                                 label,
                                                 (jfloat)bb.value,
-                                                (jint)bb.x,
-                                                (jint)bb.y,
-                                                (jint)bb.width,
-                                                (jint)bb.height);
+                                                (jint)x,
+                                                (jint)y,
+                                                (jint)width,
+                                                (jint)height);
         env->CallBooleanMethod(boundingBoxListAnomaly, listAdd, boundingBoxObj);
 
         env->DeleteLocalRef(label);

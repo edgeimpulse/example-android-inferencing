@@ -1,5 +1,6 @@
 package com.example.test_camera
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -68,20 +69,42 @@ class BoundingBoxOverlay(context: Context, attrs: AttributeSet? = null) : View(c
         style = Paint.Style.FILL
     }
 
+    private val anomalyPaint = Paint().apply {
+        color = Color.RED
+        style = Paint.Style.FILL
+        alpha = 60 // Adjust transparency
+    }
+
     var boundingBoxes: List<BoundingBox> = emptyList()
         set(value) {
             field = value
             invalidate() // Redraw when new bounding boxes are set
         }
 
+    @SuppressLint("DefaultLocale")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.TRANSPARENT) // Ensure transparency
 
         boundingBoxes.forEach { box ->
             val rect = Rect(box.x, box.y, box.x + box.width, box.y + box.height)
-            canvas.drawRect(rect, paint)
-            canvas.drawText("${box.label} (${(box.confidence * 100).toInt()}%)", box.x.toFloat(), (box.y - 10).toFloat(), textPaint)
+
+            if (box.label == "anomaly") {
+                // Fill the box with transparent red
+                canvas.drawRect(rect, anomalyPaint)
+
+                // Display anomaly score in the center
+                val scoreText = String.format("%.2f", box.confidence)
+                val textX = rect.centerX().toFloat()
+                val textY = rect.centerY().toFloat()
+
+                textPaint.textAlign = Paint.Align.CENTER
+                canvas.drawText(scoreText, textX, textY, textPaint)
+            } else {
+                // Standard object detection box
+                canvas.drawRect(rect, paint)
+                canvas.drawText("${box.label} (${(box.confidence * 100).toInt()}%)", box.x.toFloat(), (box.y - 10).toFloat(), textPaint)
+            }
         }
     }
 }
@@ -271,22 +294,26 @@ class MainActivity : ComponentActivity() {
             }
             if (result.objectDetections != null) {
                 // Display object detection results
-                val objectDetectionText = result.objectDetections.joinToString("\n") {
-                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
-                }
+//                val objectDetectionText = result.objectDetections.joinToString("\n") {
+//                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+//                }
                 // Update bounding boxes on the overlay
                 boundingBoxOverlay.visibility = View.VISIBLE
                 boundingBoxOverlay.boundingBoxes = result.objectDetections
-                combinedText.append("Object detection:\n$objectDetectionText\n\n")
+                //combinedText.append("Object detection:\n$objectDetectionText\n\n")
             }
             if (result.visualAnomalyGridCells != null) {
                 // Display visual anomaly grid cells
-                val visualAnomalyGridText = result.visualAnomalyGridCells.joinToString("\n") {
-                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
-                }
+//                val visualAnomalyGridText = result.visualAnomalyGridCells.joinToString("\n") {
+//                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+//                }
                 val visualAnomalyMax = result.anomalyResult?.getValue("max")
                 val visualAnomalyMean = result.anomalyResult?.getValue("mean")
-                combinedText.append("Visual anomalies:\n$visualAnomalyGridText\n\nVisual anomaly values:\nMean: ${visualAnomalyMean}\nMax: ${visualAnomalyMax}\n\n")
+                boundingBoxOverlay.visibility = View.VISIBLE
+                boundingBoxOverlay.boundingBoxes = result.visualAnomalyGridCells
+                resultTextView.visibility = View.VISIBLE
+                combinedText.append("Visual anomaly values:\nMean: ${visualAnomalyMean}\nMax: ${visualAnomalyMax}")
+                //combinedText.append("Visual anomalies:\n$visualAnomalyGridText\n\nVisual anomaly values:\nMean: ${visualAnomalyMean}\nMax: ${visualAnomalyMax}\n\n")
             }
             if (result.anomalyResult?.get("anomaly") != null) {
                 // Display anomaly detection score

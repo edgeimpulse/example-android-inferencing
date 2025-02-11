@@ -179,23 +179,27 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     // Construct InferenceResult object
     jobject inferenceResult = env->NewObject(resultClass,
                                              resultConstructor,
+#if EI_CLASSIFIER_LABEL_COUNT > 0
+            classificationMap,
+#else
                                              nullptr,
+#endif
 #if EI_CLASSIFIER_OBJECT_DETECTION == 1
-                                             boundingBoxList,
+            boundingBoxList,
 #else
                                              nullptr,
 #endif
 #if EI_CLASSIFIER_HAS_VISUAL_ANOMALY
                                              boundingBoxListAnomaly,
 #else
-                                             nullptr,
+            nullptr,
 #endif
 #if EI_CLASSIFIER_HAS_ANOMALY
-                                            anomalyResultMap,
+                                             anomalyResultMap,
 #else
-                                            nullptr,
+            nullptr,
 #endif
-                                            timingObject);
+                                             timingObject);
 
     return inferenceResult;
 }

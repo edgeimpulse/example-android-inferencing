@@ -16,9 +16,16 @@ import androidx.lifecycle.lifecycleScope
 import com.example.test_camera.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.util.AttributeSet
+import android.util.Size
+import android.view.View
 
 data class InferenceResult(
     val classification: Map<String, Float>?,   // Classification labels and values
@@ -47,12 +54,45 @@ data class Timing(
     val anomaly_us: Long
 )
 
+class BoundingBoxOverlay(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
+
+    private val paint = Paint().apply {
+        color = Color.RED
+        style = Paint.Style.STROKE
+        strokeWidth = 5f
+    }
+
+    private val textPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 40f
+        style = Paint.Style.FILL
+    }
+
+    var boundingBoxes: List<BoundingBox> = emptyList()
+        set(value) {
+            field = value
+            invalidate() // Redraw when new bounding boxes are set
+        }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawColor(Color.TRANSPARENT) // Ensure transparency
+
+        boundingBoxes.forEach { box ->
+            val rect = Rect(box.x, box.y, box.x + box.width, box.y + box.height)
+            canvas.drawRect(rect, paint)
+            canvas.drawText("${box.label} (${(box.confidence * 100).toInt()}%)", box.x.toFloat(), (box.y - 10).toFloat(), textPaint)
+        }
+    }
+}
+
 class MainActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var resultTextView: TextView
     private lateinit var previewView: PreviewView
     private lateinit var processedImageView: ImageView
+    private lateinit var boundingBoxOverlay: BoundingBoxOverlay
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
@@ -64,7 +104,16 @@ class MainActivity : ComponentActivity() {
 
         resultTextView = findViewById(R.id.resultTextView) // Result TextView
         previewView = findViewById(R.id.previewView) // Camera preview view
+        boundingBoxOverlay = findViewById(R.id.boundingBoxOverlay)
         // processedImageView = findViewById(R.id.processedImageView)
+
+        // Set overlay size to match PreviewView
+        previewView.post {
+            boundingBoxOverlay.layoutParams = boundingBoxOverlay.layoutParams.apply {
+                width = previewView.width
+                height = previewView.height
+            }
+        }
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -79,9 +128,13 @@ class MainActivity : ComponentActivity() {
 
             // Set up the preview to show camera feed on the PreviewView
             preview.setSurfaceProvider(previewView.surfaceProvider)
+            val width = previewView.width
+            val height = previewView.height
+            Log.d("CameraResolution", "PreviewView Resolution: ${width}x${height}")
 
             // Image analysis use case
             val imageAnalysis = ImageAnalysis.Builder()
+                //.setTargetResolution(Size(480, 640)) // Set desired resolution
                 .build()
 
             // Set up the analysis use case
@@ -201,6 +254,9 @@ class MainActivity : ComponentActivity() {
 
     // Display results in UI
     private fun displayResults(result: InferenceResult?) {
+        resultTextView.visibility = View.GONE
+        boundingBoxOverlay.visibility = View.GONE
+
         if (result == null) {
             resultTextView.text = "Error running inference"
         } else
@@ -218,6 +274,9 @@ class MainActivity : ComponentActivity() {
                 val objectDetectionText = result.objectDetections.joinToString("\n") {
                     "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
                 }
+                // Update bounding boxes on the overlay
+                boundingBoxOverlay.visibility = View.VISIBLE
+                boundingBoxOverlay.boundingBoxes = result.objectDetections
                 combinedText.append("Object detection:\n$objectDetectionText\n\n")
             }
             if (result.visualAnomalyGridCells != null) {

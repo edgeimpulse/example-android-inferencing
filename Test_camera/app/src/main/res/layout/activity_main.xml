@@ -1,27 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="1dp">
+    android:layout_height="match_parent">
 
     <!-- Camera Preview -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_gravity="center" />
+        android:layout_height="match_parent"
+        android:layout_gravity="center"/>
 
-<!--    &lt;!&ndash; Processed Image at the Bottom &ndash;&gt;-->
-<!--    <ImageView-->
-<!--        android:id="@+id/processedImageView"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:layout_weight="1"-->
-<!--        android:scaleType="fitCenter"-->
-<!--        android:background="@android:color/darker_gray"-->
-<!--        android:layout_marginTop="8dp"/>-->
+    <!-- Bounding Box Overlay (Hidden by Default) -->
+    <com.example.test_camera.BoundingBoxOverlay
+        android:id="@+id/boundingBoxOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent"
+        android:visibility="gone"/>
 
     <!-- Result Display Frame -->
     <LinearLayout
@@ -31,7 +26,8 @@
         android:orientation="vertical"
         android:background="@android:color/holo_blue_light"
         android:gravity="center"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        android:layout_gravity="bottom">
 
         <TextView
             android:id="@+id/resultTextView"
@@ -44,4 +40,4 @@
             android:padding="8dp"/>
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>

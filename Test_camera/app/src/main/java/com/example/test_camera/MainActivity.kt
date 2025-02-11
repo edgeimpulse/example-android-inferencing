@@ -20,6 +20,33 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+data class InferenceResult(
+    val classification: Map<String, Float>?,   // Classification labels and values
+    val objectDetections: List<BoundingBox>?,  // Object detection results
+    val visualAnomalyGridCells: List<BoundingBox>?, // Visual anomaly grid
+    val anomalyResult: Map<String, Float>?, // Anomaly values
+    val timing: Timing  // Timing information
+)
+
+data class BoundingBox(
+    val label: String,
+    val confidence: Float,
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int
+)
+
+data class Timing(
+    val sampling: Int,
+    val dsp: Int,
+    val classification: Int,
+    val anomaly: Int,
+    val dsp_us: Long,
+    val classification_us: Long,
+    val anomaly_us: Long
+)
+
 class MainActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -169,14 +196,49 @@ class MainActivity : ComponentActivity() {
     }
 
     // Call the C++ function to process the image and return results
-    private external fun passToCpp(imageData: ByteArray): String
+    private external fun passToCpp(imageData: ByteArray): InferenceResult?
     private external fun passToCppDebug(imageData: ByteArray): ByteArray
 
     // Display results in UI
-    private fun displayResults(result: String) {
-        // print the result
-        // Log.d("MainActivity", "Result: $result")
-        resultTextView.text = result
+    private fun displayResults(result: InferenceResult?) {
+        if (result == null) {
+            resultTextView.text = "Error running inference"
+        } else
+        {
+            val combinedText = StringBuilder()
+            if (result.classification != null) {
+                // Display classification results
+                val classificationText = result.classification.entries.joinToString("\n") {
+                    "${it.key}: ${it.value}"
+                }
+                combinedText.append("Classification:\n$classificationText\n\n")
+            }
+            if (result.objectDetections != null) {
+                // Display object detection results
+                val objectDetectionText = result.objectDetections.joinToString("\n") {
+                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+                }
+                combinedText.append("Object detection:\n$objectDetectionText\n\n")
+            }
+            if (result.visualAnomalyGridCells != null) {
+                // Display visual anomaly grid cells
+                val visualAnomalyGridText = result.visualAnomalyGridCells.joinToString("\n") {
+                    "${it.label}: ${it.confidence}, ${it.x}, ${it.y}, ${it.width}, ${it.height}"
+                }
+                val visualAnomalyMax = result.anomalyResult?.getValue("max")
+                val visualAnomalyMean = result.anomalyResult?.getValue("mean")
+                combinedText.append("Visual anomalies:\n$visualAnomalyGridText\n\nVisual anomaly values:\nMean: ${visualAnomalyMean}\nMax: ${visualAnomalyMax}\n\n")
+            }
+            if (result.anomalyResult?.get("anomaly") != null) {
+                // Display anomaly detection score
+                val anomalyScore = result.anomalyResult.get("anomaly")
+                combinedText.append("Anomaly score:\n${anomalyScore}")
+            }
+            // print the result
+            val textToDisplay = combinedText.toString()
+            //Log.d("MainActivity", "Result: $textToDisplay")
+            resultTextView.text = textToDisplay
+        }
     }
 
     // Load the native library

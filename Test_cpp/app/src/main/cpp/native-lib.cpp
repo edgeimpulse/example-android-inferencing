@@ -27,7 +27,7 @@
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 
 std::vector<float> raw_features = {
-
+        // Copy raw features here (e.g. from the 'Model testing' page)
 };
 
 extern "C" JNIEXPORT jobject JNICALL

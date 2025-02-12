@@ -3,7 +3,6 @@ package com.example.test_cpp
 import android.annotation.SuppressLint
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.TextView
 import com.example.test_cpp.databinding.ActivityMainBinding
 
 data class InferenceResult(

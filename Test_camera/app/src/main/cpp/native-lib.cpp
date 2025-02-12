@@ -29,6 +29,9 @@
 #include "edge-impulse-sdk/dsp/image/image.hpp"
 
 jbyte* byteData = nullptr;
+#define CAMERA_INPUT_WIDTH 480
+#define CAMERA_INPUT_HEIGHT 640
+#define PIXEL_NUM 3
 
 static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
 {
@@ -65,16 +68,16 @@ Java_com_example_test_1camera_MainActivity_passToCpp(
     byteData = env->GetByteArrayElements(image_data, nullptr);
     jsize byteArrayLength = env->GetArrayLength(image_data);
 
-//    if (byteArrayLength != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
-//        __android_log_print(ANDROID_LOG_INFO, "MAIN", "The size of your 'features' array is not correct. Expected %d items, but had %d\n",
-//               EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, byteArrayLength);
-//        return env->NewStringUTF("FAIL");
-//    }
+    if (byteArrayLength != CAMERA_INPUT_WIDTH * CAMERA_INPUT_HEIGHT * PIXEL_NUM) {
+        __android_log_print(ANDROID_LOG_INFO, "MAIN", "The size of your 'features' array is not correct. Expected %d items, but had %d\n",
+                            CAMERA_INPUT_WIDTH * CAMERA_INPUT_HEIGHT * PIXEL_NUM, byteArrayLength);
+        return nullptr;
+    }
 
     ei::image::processing::crop_and_interpolate_rgb888(
             (uint8_t*)byteData,
-            480,
-            640,
+            CAMERA_INPUT_WIDTH,
+            CAMERA_INPUT_HEIGHT,
             (uint8_t*)byteData,
             EI_CLASSIFIER_INPUT_WIDTH,
             EI_CLASSIFIER_INPUT_HEIGHT);
@@ -260,69 +263,4 @@ Java_com_example_test_1camera_MainActivity_passToCpp(
                                              timingObject);
 
     return inferenceResult;
-}
-
-extern "C" JNIEXPORT jbyteArray JNICALL
-Java_com_example_test_1camera_MainActivity_passToCppDebug(
-        JNIEnv* env,
-        jobject,
-        jbyteArray image_data) {
-
-    // Get byte array data from JNI
-    byteData = env->GetByteArrayElements(image_data, nullptr);
-    jsize byteArrayLength = env->GetArrayLength(image_data);
-
-//    if (byteArrayLength != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
-//        __android_log_print(ANDROID_LOG_INFO, "MAIN", "The size of your 'features' array is not correct. Expected %d items, but had %d\n",
-//               EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, byteArrayLength);
-//        return env->NewStringUTF("FAIL");
-//    }
-
-    ei::image::processing::crop_and_interpolate_rgb888(
-            (uint8_t*)byteData,
-            480,
-            640,
-            (uint8_t*)byteData,
-            EI_CLASSIFIER_INPUT_WIDTH,
-            EI_CLASSIFIER_INPUT_HEIGHT);
-
-    ei_impulse_result_t result;
-
-    signal_t signal;
-    float features[EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT];
-    ei_camera_get_data(0, EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT, features);
-    numpy::signal_from_buffer(features, EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT, &signal);
-
-    EI_IMPULSE_ERROR res = run_classifier(&signal, &result, false);
-
-    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-        __android_log_print(ANDROID_LOG_INFO, "MAIN", "%s : %f", result.classification[ix].label, result.classification[ix].value);
-    }
-    __android_log_print(ANDROID_LOG_INFO, "MAIN", "\n");
-
-    uint8_t * image_after_signal = new uint8_t[EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 3];
-    uint32_t pixel_ix = 0;
-    for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; i++) {
-        uint32_t pixel = static_cast<uint32_t>(features[i]);
-        image_after_signal[pixel_ix] = ((pixel >> 16) & 0xFF);
-        image_after_signal[pixel_ix + 1] = ((pixel >> 8) & 0xFF);
-        image_after_signal[pixel_ix + 2] = ((pixel) & 0xFF);
-        pixel_ix += 3;
-    }
-
-    // Allocate a new byte array to return processed image
-    jbyteArray outputArray = env->NewByteArray(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 3);
-    if (outputArray == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, "MAIN", "Failed to allocate outputArray");
-        return nullptr;
-    }
-
-    // Copy processed image data to output array
-    env->SetByteArrayRegion(outputArray, 0, EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 3, (jbyte*)image_after_signal);
-
-    // Release JNI byte array reference
-    env->ReleaseByteArrayElements(image_data, byteData, 0);
-    delete[] image_after_signal;
-
-    return outputArray;
 }

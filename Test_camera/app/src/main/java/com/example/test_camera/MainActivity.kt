@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Log
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.camera.core.*
@@ -25,7 +24,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.util.AttributeSet
-import android.util.Size
 import android.view.View
 
 data class InferenceResult(
@@ -114,7 +112,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var resultTextView: TextView
     private lateinit var previewView: PreviewView
-    private lateinit var processedImageView: ImageView
     private lateinit var boundingBoxOverlay: BoundingBoxOverlay
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -127,8 +124,7 @@ class MainActivity : ComponentActivity() {
 
         resultTextView = findViewById(R.id.resultTextView) // Result TextView
         previewView = findViewById(R.id.previewView) // Camera preview view
-        boundingBoxOverlay = findViewById(R.id.boundingBoxOverlay)
-        // processedImageView = findViewById(R.id.processedImageView)
+        boundingBoxOverlay = findViewById(R.id.boundingBoxOverlay) // overlay for bbxes / visual ad
 
         // Set overlay size to match PreviewView
         previewView.post {
@@ -178,11 +174,10 @@ class MainActivity : ComponentActivity() {
 
         // Resize the Bitmap to Edge Impulse model size
         // val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 64, 64, true)
+        // resizing is done in C++ code
 
         // Convert the resized bitmap to ByteArray
         val byteArray = getByteArrayFromBitmap(bitmap)
-//        val outputPath = File(getExternalFilesDir(null), "processed_image.bmp").absolutePath
-//        Log.d("MainActivity", "Output path: $outputPath")
 
         // Close the imageProxy after processing
         imageProxy.close()
@@ -194,23 +189,6 @@ class MainActivity : ComponentActivity() {
                 displayResults(result)
             }
         }
-
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            val result = passToCppDebugSave(byteArray)
-//            runOnUiThread {
-//                displayResults(result)
-//            }
-//        }
-
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            val processedByteArray = passToCppDebug(byteArray)
-//            val processedBitmap = getBitmapFromByteArray(processedByteArray, 64, 64)
-//
-//            runOnUiThread {
-//                processedImageView.setImageBitmap(processedBitmap)
-//            }
-//        }
-
     }
 
     // Convert ImageProxy to Bitmap
@@ -254,28 +232,12 @@ class MainActivity : ComponentActivity() {
         return rgbByteArray
     }
 
-    private fun getBitmapFromByteArray(byteArray: ByteArray, width: Int, height: Int): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val pixels = IntArray(width * height)
-
-        for (i in pixels.indices) {
-            val r = byteArray[i * 3].toInt() and 0xFF
-            val g = byteArray[i * 3 + 1].toInt() and 0xFF
-            val b = byteArray[i * 3 + 2].toInt() and 0xFF
-
-            pixels[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-        }
-
-        bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
-
-        return bitmap
-    }
-
     // Call the C++ function to process the image and return results
     private external fun passToCpp(imageData: ByteArray): InferenceResult?
     private external fun passToCppDebug(imageData: ByteArray): ByteArray
 
     // Display results in UI
+    @SuppressLint("SetTextI18n")
     private fun displayResults(result: InferenceResult?) {
         resultTextView.visibility = View.GONE
         boundingBoxOverlay.visibility = View.GONE

@@ -16,5 +16,5 @@ local.properties
 /app/src/main/cpp/edge-impulse-sdk
 /app/src/main/cpp/model-parameters
 /app/src/main/cpp/tensorflow-lite
-/app/src/main/cpp/tflite
+/app/src/main/cpp/tflite/android64
 /app/src/main/cpp/tflite-model

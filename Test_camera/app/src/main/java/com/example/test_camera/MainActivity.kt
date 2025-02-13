@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Log
+import android.Manifest
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.camera.core.*
@@ -19,12 +20,14 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.View
+import androidx.core.app.ActivityCompat
 
 data class InferenceResult(
     val classification: Map<String, Float>?,   // Classification labels and values
@@ -52,6 +55,8 @@ data class Timing(
     val classification_us: Long,
     val anomaly_us: Long
 )
+
+private const val CAMERA_PERMISSION_REQUEST_CODE = 1001
 
 class BoundingBoxOverlay(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
 
@@ -134,37 +139,48 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        if (!hasCameraPermission()) {
+            requestCameraPermission()
+        } else {
+            startCamera()
+        }
+
+    }
+
+    private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
-
-            // Camera selector
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-            // Preview use case
-            val preview = Preview.Builder()
-                .build()
-
-            // Set up the preview to show camera feed on the PreviewView
+            val preview = Preview.Builder().build()
             preview.setSurfaceProvider(previewView.surfaceProvider)
-            val width = previewView.width
-            val height = previewView.height
-            Log.d("CameraResolution", "PreviewView Resolution: ${width}x${height}")
+            val imageAnalysis = ImageAnalysis.Builder().build()
 
-            // Image analysis use case
-            val imageAnalysis = ImageAnalysis.Builder()
-                //.setTargetResolution(Size(480, 640)) // Set desired resolution
-                .build()
-
-            // Set up the analysis use case
             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                processImage(imageProxy)  // Process image and pass it to C++
+                processImage(imageProxy)
             }
 
-            // Bind use cases to lifecycle
             cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
-
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun hasCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestCameraPermission() {
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST_CODE)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCamera()
+            } else {
+                resultTextView.text = "Camera permission required!"
+            }
+        }
     }
 
     // Process the captured image

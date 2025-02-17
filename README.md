@@ -1,3 +1,4 @@
+
 # example-android-inferencing
 
 ## Edge Impulse Inferencing on Android
@@ -31,10 +32,25 @@ cd example-android-inferencing/Test_cpp/app/src/main/cpp/tflite
 sh download_tflite_libs.bat # download_tflite_libs.sh for OSX and Linux
 ```
 
-### import the project to Android Studio
+## Import the Project to Android Studio
+1. Open **Android Studio**.
+2. Select **Open an existing Android Studio project**.
+3. Navigate to the cloned repository and select it.
 
-### Download CPP project from Edge Impulse
+## Download CPP Project from Edge Impulse
+1. Go to **Edge Impulse Studio**.
+2. Export your trained model as a **C++ library**.
+3. Download the exported model.
 
-### Paste in the test feature set for the cpp test
+## Integrate the Model with the Project
+1. Extract the downloaded **C++ library**.
+2. Copy the extracted files into the `example-android-inferencing/Test_cpp/app/src/main/cpp` directory.
 
+## Paste in the Test Feature Set for the CPP Test
+1. Obtain the test feature set from **Edge Impulse Studio**.
+2. Paste the test feature set into the appropriate location in the project.
+
+## Build and Run the Project
+1. In **Android Studio**, click on **Build** > **Make Project**.
+2. Once the build is successful, run the project on an Android device or emulator.
 

@@ -21,13 +21,14 @@
  */
 
 #include <jni.h>
+#include <android/log.h>
 #include <string>
 #include <stdio.h>
 #include "vector"
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 
 std::vector<float> raw_features = {
-        // Copy raw features here (e.g. from the 'Model testing' page)
+    // Copy raw features here (e.g. from the 'Model testing' page)
 };
 
 extern "C" JNIEXPORT jobject JNICALL
@@ -36,8 +37,7 @@ Java_com_example_test_1cpp_MainActivity_runInference(
         jobject) {
 
     if (raw_features.size() != EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE) {
-        printf("The size of your 'features' array is not correct. Expected %d items, but had %d\n",
-               EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, raw_features.size());
+        ei_printf("The size of your 'features' array is not correct. Expected %d items, but had %d\n", EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE, raw_features.size());
         return nullptr;
     }
 
@@ -47,6 +47,11 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     numpy::signal_from_buffer(&raw_features[0], raw_features.size(), &signal);
 
     EI_IMPULSE_ERROR res = run_classifier(&signal, &result, false);
+
+    if (res != EI_IMPULSE_OK) {
+        ei_printf("Inference error code %d\n", (int)res);
+    return nullptr;
+    }
 
     // Find Java classes
     jclass resultClass = env->FindClass("com/example/test_cpp/InferenceResult");

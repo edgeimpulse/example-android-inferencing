@@ -13,11 +13,11 @@ This repository contains a minimal example for running an **Edge Impulse** machi
 ### Android Development:
 - Install **Android Studio**.
 - Install **Android NDK** and **CMake** via the **Android Studio SDK Manager**.
-
+The example is tested to work with Android Studio Ladybug Feature Drop | 2024.2.2, Android API 35, Android SDK Build-Tools 35.0.1, NDK 27.0.12077973, CMake 3.22.1.
 ---
 
 ## Cloning the Base Repository
-We created an example repository that contains an **Android Studio project with C++ support**.  
+We created an example repository that contains an **Android Studio project with C++ support**.
 Clone or download this repository:
 
 ```sh

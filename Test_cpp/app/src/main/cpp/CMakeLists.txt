@@ -49,20 +49,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         .
 )
 
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.cpp")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.cc")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.s")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/TransformFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/CommonTables" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/BasicMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/ComplexMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/FastMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/SupportFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/MatrixFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/StatisticsFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/NN/Source" "*.c")
-
-
 # Collect C source files
 file(GLOB EI_SOURCE_FILES
         "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/CMSIS/DSP/Source/TransformFunctions/*.c"
@@ -88,17 +74,6 @@ file(GLOB EI_SOURCE_FILES
 LIST(APPEND EI_SOURCE_FILES "${EI_SDK_FOLDER}/tensorflow/lite/c/common.c")
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${EI_SOURCE_FILES})
-
-#add_library( tensorflow-lite
-#        SHARED
-#        IMPORTED )
-#
-#set_target_properties( # Specifies the target library.
-#        tensorflow-lite
-#        # Specifies the parameter you want to define.
-#        PROPERTIES IMPORTED_LOCATION
-#        # Provides the path to the library you want to import.
-#        ${CMAKE_SOURCE_DIR}/tflite/linux-aarch64/libtensorflow-lite.a )
 
 # Specifies libraries CMake should link to your target library. You
 # can link libraries from various origins, such as libraries defined in this

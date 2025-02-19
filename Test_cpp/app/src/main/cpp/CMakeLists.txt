@@ -28,6 +28,39 @@ add_definitions(-DEI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP=1
 
 link_directories(${CMAKE_SOURCE_DIR}/tflite/android64)
 
+add_library( tflite
+        SHARED
+        IMPORTED )
+
+set_target_properties( # Specifies the target library.
+        tflite
+        # Specifies the parameter you want to define.
+        PROPERTIES IMPORTED_LOCATION
+        # Provides the path to the library you want to import.
+        ${CMAKE_SOURCE_DIR}/tflite/android64/libtensorflowlite.so )
+
+add_library( tflite-delegate-gpu
+        SHARED
+        IMPORTED )
+
+set_target_properties( # Specifies the target library.
+        tflite-delegate-gpu
+        # Specifies the parameter you want to define.
+        PROPERTIES IMPORTED_LOCATION
+        # Provides the path to the library you want to import.
+        ${CMAKE_SOURCE_DIR}/tflite/android64/libtensorflowlite_gpu_delegate.so )
+
+add_library( tflite-delegate
+        SHARED
+        IMPORTED )
+
+set_target_properties( # Specifies the target library.
+        tflite-delegate
+        # Specifies the parameter you want to define.
+        PROPERTIES IMPORTED_LOCATION
+        # Provides the path to the library you want to import.
+        ${CMAKE_SOURCE_DIR}/tflite/android64/libdelegate.so )
+
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.
@@ -49,20 +82,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         .
 )
 
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.cpp")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.cc")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}" "*.s")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/TransformFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/CommonTables" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/BasicMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/ComplexMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/FastMathFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/SupportFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/MatrixFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/DSP/Source/StatisticsFunctions" "*.c")
-#RECURSIVE_FIND_FILE_APPEND(EI_SOURCE_FILES "${EI_SDK_FOLDER}/CMSIS/NN/Source" "*.c")
-
-
 # Collect C source files
 file(GLOB EI_SOURCE_FILES
         "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/CMSIS/DSP/Source/TransformFunctions/*.c"
@@ -81,24 +100,15 @@ file(GLOB EI_SOURCE_FILES
         "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/dsp/kissfft/*.cpp"
         "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/dsp/dct/*.cpp"
         "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/dsp/memory.cpp"
-        "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/porting/posix/*.c*"
-        "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/porting/mingw32/*.c*"
+        "${CMAKE_SOURCE_DIR}/edge-impulse-sdk/porting/android/*.c*"
 )
 
 LIST(APPEND EI_SOURCE_FILES "${EI_SDK_FOLDER}/tensorflow/lite/c/common.c")
+#LIST(APPEND EI_SOURCE_FILES "${CMAKE_SOURCE_DIR}/tensorflow-lite/tensorflow/lite/core/async/interop/c/constants.cc")
+#LIST(APPEND EI_SOURCE_FILES "${CMAKE_SOURCE_DIR}/tensorflow-lite/tensorflow/lite/delegates/gpu/delegate_options.cc")
+#LIST(APPEND EI_SOURCE_FILES "${CMAKE_SOURCE_DIR}/tensorflow-lite/tensorflow/lite/delegates/gpu/android_hardware_buffer.cc")
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${EI_SOURCE_FILES})
-
-#add_library( tensorflow-lite
-#        SHARED
-#        IMPORTED )
-#
-#set_target_properties( # Specifies the target library.
-#        tensorflow-lite
-#        # Specifies the parameter you want to define.
-#        PROPERTIES IMPORTED_LOCATION
-#        # Provides the path to the library you want to import.
-#        ${CMAKE_SOURCE_DIR}/tflite/linux-aarch64/libtensorflow-lite.a )
 
 # Specifies libraries CMake should link to your target library. You
 # can link libraries from various origins, such as libraries defined in this
@@ -107,11 +117,17 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
         android
         log
+        EGL
+        GLESv2
+        absl
+        tflite-delegate
         tensorflow-lite
+        delegate
         farmhash
         fft2d_fftsg
         fft2d_fftsg2d
         ruy
         XNNPACK
         cpuinfo
-        pthreadpool)
+        pthreadpool
+        )

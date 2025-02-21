@@ -1,0 +1,1 @@
+/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/build/intermediates/cxx/Debug/1w3i3s16/obj/arm64-v8a

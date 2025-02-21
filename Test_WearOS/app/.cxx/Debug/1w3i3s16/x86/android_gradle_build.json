@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/eoinjordan/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/.cxx/Debug/1w3i3s16/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/eoinjordan/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/.cxx/Debug/1w3i3s16/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "edgeimpulsewearos::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "edgeimpulsewearos",
+      "output": "/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/build/intermediates/cxx/Debug/1w3i3s16/obj/x86/libedgeimpulsewearos.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/eoinjordan/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/eoinjordan/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

@@ -61,3 +61,64 @@ Choose the project to import
 1. In **Android Studio**, click on **Build** > **Make Project**.
 2. Once the build is successful, run the project on an Android device or emulator.
 
+
+## Adding New Sensors to the WearOS example
+If you want to integrate additional sensors, such as a Gyroscope or Heart Rate Sensor, follow these steps:
+
+1. Enable the Sensor in the Code
+In MainActivity.kt, locate the sensor initialization section and uncomment the corresponding lines:
+
+```kotlin
+// Uncomment to add Gyroscope support
+private var gyroscope: Sensor? = null
+
+// Uncomment to add Heart Rate sensor support
+private var heartRateSensor: Sensor? = null
+```
+
+2. Initialize the Sensor in onCreate
+Inside onCreate(), uncomment and initialize the sensor:
+
+```kotlin
+// gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+// heartRateSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)
+```
+3. Register the Sensor in onResume
+To start collecting sensor data when the app is active, uncomment the registration logic:
+
+```kotlin
+// gyroscope?.also {
+//     sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+// }
+
+// heartRateSensor?.also {
+//     sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+// }
+```
+4. Handle Sensor Data in onSensorChanged
+Modify the onSensorChanged() function to collect new sensor data:
+
+```kotlin
+// Gyroscope data
+// Sensor.TYPE_GYROSCOPE -> {
+//     ringBuffer[ringBufferIndex++] = event.values[0] // X rotation
+//     ringBuffer[ringBufferIndex++] = event.values[1] // Y rotation
+//     ringBuffer[ringBufferIndex++] = event.values[2] // Z rotation
+// }
+
+// Heart Rate data
+// Sensor.TYPE_HEART_RATE -> {
+//     ringBuffer[ringBufferIndex++] = event.values[0] // Heart rate BPM
+// }
+```
+5. Unregister the Sensor in onPause
+To save battery and improve performance, ensure sensors stop when the app is paused:
+
+```kotlin
+sensorManager.unregisterListener(this)
+```
+6. Run the App and Verify
+Build and deploy the app on a WearOS device.
+Check logs for new sensor data.
+Ensure inference runs correctly with the additional inputs.
+

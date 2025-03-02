@@ -1,4 +1,4 @@
-package com.example.test_camera
+package com.example.example_inferencing_camera
 
 import org.junit.Test
 

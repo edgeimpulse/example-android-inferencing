@@ -1,0 +1,1 @@
+/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/build/intermediates/cxx/Debug/1w3i3s16/obj/armeabi-v7a

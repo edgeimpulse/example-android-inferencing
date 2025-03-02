@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "edgeimpulsewearos",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "edgeimpulsewearos::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-edgeimpulsewearos-Debug-3e4e94c1a5764a099c17.json",
+					"name" : "edgeimpulsewearos",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/.cxx/Debug/1w3i3s16/armeabi-v7a",
+		"source" : "/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/src/main/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

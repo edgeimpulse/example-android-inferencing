@@ -1,4 +1,4 @@
-package com.example.test_camera.ui.theme
+package com.example.example_inferencing_camera.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

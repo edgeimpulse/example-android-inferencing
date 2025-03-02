@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "edgeimpulsewearos",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "edgeimpulsewearos::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-edgeimpulsewearos-Debug-465851d7f25558bd5b40.json",
+					"name" : "edgeimpulsewearos",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/eoinjordan/Documents/finalandroid/example-android-inferencing/example_motion_WearOS/app/.cxx/Debug/1w3i3s16/arm64-v8a",
+		"source" : "/Users/eoinjordan/Documents/finalandroid/example-android-inferencing/example_motion_WearOS/app/src/main/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

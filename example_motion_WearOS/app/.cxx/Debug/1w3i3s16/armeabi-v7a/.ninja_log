@@ -1,0 +1,12 @@
+# ninja log v5
+2	50	1740153532665921723	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/tensorflow/lite/c/common.c.o	311ba70335445a7c
+1	71	1740153532684561947	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/porting/mingw32/debug_log.cpp.o	5c72766b1598f27e
+1	79	1740153532694671612	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/porting/mingw32/ei_classifier_porting.cpp.o	cb9354ca180e07d4
+1	82	1740153532698392356	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/dsp/dct/fast-dct-fft.cpp.o	34541de53cbf184c
+2	105	1740153532721410442	CMakeFiles/edgeimpulsewearos.dir/tflite-model/tflite_learn_17.cpp.o	1a2ebb45b87da364
+2	107	1740153532723269585	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/porting/posix/debug_log.cpp.o	73bfa479529043af
+2	151	1740153532766251212	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/porting/posix/ei_classifier_porting.cpp.o	64008b2d7cd3057f
+1	153	1740153532768329228	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/dsp/kissfft/kiss_fftr.cpp.o	b20d29c4fd1c1c4f
+0	160	1740153532775967882	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/dsp/kissfft/kiss_fft.cpp.o	3f47ae64e3a279d6
+1	476	1740153533089817563	CMakeFiles/edgeimpulsewearos.dir/edge-impulse-sdk/dsp/memory.cpp.o	8395995fe9681b43
+0	2263	1740153534862256580	CMakeFiles/edgeimpulsewearos.dir/wearosinference.cpp.o	6ec278e898b46302

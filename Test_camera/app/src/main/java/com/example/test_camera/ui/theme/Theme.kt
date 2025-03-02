@@ -1,6 +1,5 @@
-package com.example.test_camera.ui.theme
+package com.example.example_inferencing_camera.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

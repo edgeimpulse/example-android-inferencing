@@ -28,11 +28,18 @@ cd example-inferencing-android
 ## Run the Windows / Linux / OSX script to fetch resources
 
 ```sh
-cd example-android-inferencing/Test_cpp/app/src/main/cpp/tflite
+cd example-android-inferencing/example_static_buffer/app/src/main/cpp/tflite
 sh download_tflite_libs.bat # download_tflite_libs.sh for OSX and Linux
 ```
 
 ## Import the Project to Android Studio
+
+Choose the project to import
+
+- [WearOS](https://github.com/edgeimpulse/example-android-inferencing/example_motion_wearos)
+- [Android](https://github.com/edgeimpulse/example-android-inferencing/example_camera_inference)
+- [Static Buffer](https://github.com/edgeimpulse/example-android-inferencing/example_static_buffer)
+
 1. Open **Android Studio**.
 2. Select **Open an existing Android Studio project**.
 3. Navigate to the cloned repository and select it.
@@ -44,7 +51,7 @@ sh download_tflite_libs.bat # download_tflite_libs.sh for OSX and Linux
 
 ## Integrate the Model with the Project
 1. Extract the downloaded **C++ library**.
-2. Copy the extracted files into the `example-android-inferencing/Test_cpp/app/src/main/cpp` directory, dont copy the CMake.txt file.
+2. Copy the extracted files into the `example-android-inferencing/example_static_buffer/app/src/main/cpp` directory, dont copy the CMake.txt file.
 
 ## Paste in the Test Feature Set for the CPP Test
 1. Obtain the test feature set from **Edge Impulse Studio**.

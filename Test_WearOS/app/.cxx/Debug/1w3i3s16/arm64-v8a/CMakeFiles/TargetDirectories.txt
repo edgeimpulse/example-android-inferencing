@@ -1,3 +1,0 @@
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/.cxx/Debug/1w3i3s16/arm64-v8a/CMakeFiles/edgeimpulsewearos.dir
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/.cxx/Debug/1w3i3s16/arm64-v8a/CMakeFiles/edit_cache.dir
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/.cxx/Debug/1w3i3s16/arm64-v8a/CMakeFiles/rebuild_cache.dir

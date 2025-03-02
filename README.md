@@ -37,8 +37,8 @@ sh download_tflite_libs.bat # download_tflite_libs.sh for OSX and Linux
 Choose the project to import
 
 - [WearOS](example_motion_WearOS)
-- [Android](https://github.com/edgeimpulse/example-android-inferencing/example_camera_inference)
-- [Static Buffer](https://github.com/edgeimpulse/example-android-inferencing/example_static_buffer)
+- [Android](example_camera_inference)
+- [Static Buffer](example_static_buffer)
 
 1. Open **Android Studio**.
 2. Select **Open an existing Android Studio project**.

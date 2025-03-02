@@ -1,1 +1,0 @@
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/src/main/cpp/CMakeLists.txt

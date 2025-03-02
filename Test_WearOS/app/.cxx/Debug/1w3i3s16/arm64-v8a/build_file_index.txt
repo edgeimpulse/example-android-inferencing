@@ -1,2 +1,0 @@
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/src/main/cpp/CMakeLists.txt
-/Users/eoinjordan/AndroidStudioProjects/EdgeImpulseWearOS/app/src/main/cpp/edge-impulse-sdk/cmake/utils.cmake

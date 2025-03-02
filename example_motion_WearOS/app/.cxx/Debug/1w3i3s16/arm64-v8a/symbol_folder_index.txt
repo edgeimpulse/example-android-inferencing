@@ -1,0 +1,1 @@
+/Users/eoinjordan/Documents/finalandroid/example-android-inferencing/example_motion_WearOS/app/build/intermediates/cxx/Debug/1w3i3s16/obj/arm64-v8a

@@ -1,0 +1,2 @@
+/Users/eoinjordan/Documents/finalandroid/example-android-inferencing/example_motion_WearOS/app/src/main/cpp/CMakeLists.txt
+/Users/eoinjordan/Documents/finalandroid/example-android-inferencing/example_motion_WearOS/app/src/main/cpp/edge-impulse-sdk/cmake/utils.cmake

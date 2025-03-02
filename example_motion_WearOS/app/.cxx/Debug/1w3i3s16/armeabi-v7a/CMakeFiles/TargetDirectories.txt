@@ -1,0 +1,3 @@
+/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/.cxx/Debug/1w3i3s16/armeabi-v7a/CMakeFiles/edgeimpulsewearos.dir
+/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/.cxx/Debug/1w3i3s16/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/eoinjordan/Downloads/example-android-inferencing-main-6/Test_WearOS/app/.cxx/Debug/1w3i3s16/armeabi-v7a/CMakeFiles/rebuild_cache.dir

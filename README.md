@@ -36,7 +36,7 @@ sh download_tflite_libs.bat # download_tflite_libs.sh for OSX and Linux
 
 Choose the project to import
 
-- [WearOS](https://github.com/edgeimpulse/example-android-inferencing/example_motion_wearos)
+- [WearOS](example_motion_WearOS)
 - [Android](https://github.com/edgeimpulse/example-android-inferencing/example_camera_inference)
 - [Static Buffer](https://github.com/edgeimpulse/example-android-inferencing/example_static_buffer)
 

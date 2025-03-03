@@ -21,7 +21,7 @@ import com.edgeimpulse.edgeimpulsewearos.presentation.theme.EdgeImpulseWearOSThe
 /**
  * If your model needs e.g. 120 float values (40 sets of x,y,z), set this to 120.
  */
-private const val EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE = 120
+private const val EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE = 375
 
 class MainActivity : ComponentActivity(), SensorEventListener {
 

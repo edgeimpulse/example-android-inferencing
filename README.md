@@ -54,8 +54,14 @@ Choose the project to import
 2. Copy the extracted files into the `example-android-inferencing/example_static_buffer/app/src/main/cpp` directory, dont copy the CMake.txt file.
 
 ## Paste in the Test Feature Set for the CPP Test
-1. Obtain the test feature set from **Edge Impulse Studio**.
-2. Paste the test feature set into the appropriate location in the project.
+1. Obtain the test feature set from **Edge Impulse Studio** test impulse tab.
+2. Paste the test feature set into the raw_features array the native_lib.cpp licated in the cpp directory.
+
+```cpp
+std::vector<float> raw_features = {
+    // Copy raw features here (e.g. from the 'Model testing' page)
+};
+```
 
 ## Build and Run the Project
 1. In **Android Studio**, click on **Build** > **Make Project**.
@@ -80,16 +86,16 @@ private var heartRateSensor: Sensor? = null
 Inside onCreate(), uncomment and initialize the sensor:
 
 ```kotlin
-// gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+ gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 // heartRateSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)
 ```
 3. Register the Sensor in onResume
 To start collecting sensor data when the app is active, uncomment the registration logic:
 
 ```kotlin
-// gyroscope?.also {
-//     sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-// }
+ gyroscope?.also {
+     sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+ }
 
 // heartRateSensor?.also {
 //     sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
@@ -99,12 +105,12 @@ To start collecting sensor data when the app is active, uncomment the registrati
 Modify the onSensorChanged() function to collect new sensor data:
 
 ```kotlin
-// Gyroscope data
-// Sensor.TYPE_GYROSCOPE -> {
-//     ringBuffer[ringBufferIndex++] = event.values[0] // X rotation
-//     ringBuffer[ringBufferIndex++] = event.values[1] // Y rotation
-//     ringBuffer[ringBufferIndex++] = event.values[2] // Z rotation
-// }
+ Gyroscope data
+ Sensor.TYPE_GYROSCOPE -> {
+     ringBuffer[ringBufferIndex++] = event.values[0] // X rotation
+     ringBuffer[ringBufferIndex++] = event.values[1] // Y rotation
+     ringBuffer[ringBufferIndex++] = event.values[2] // Z rotation
+ }
 
 // Heart Rate data
 // Sensor.TYPE_HEART_RATE -> {

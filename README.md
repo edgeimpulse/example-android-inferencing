@@ -4,6 +4,8 @@
 ## Edge Impulse Inferencing on Android
 This repository contains a minimal example for running an **Edge Impulse** machine learning model on an **Android** device using **Android NDK** and **TensorFlow Lite**.
 
+See the [Android Documentation](https://docs.edgeimpulse.com/docs/run-inference/cpp-library/running-your-impulse-android).
+
 ## Prerequisites
 
 ### Edge Impulse:

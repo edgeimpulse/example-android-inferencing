@@ -24,7 +24,7 @@ Clone or download this repository:
 
 ```sh
 git clone https://github.com/edgeimpulse/example-android-inferencing.git
-cd example-inferencing-android
+cd example-android-inferencing
 ```
 
 ## Run the Windows / Linux / OSX script to fetch resources

@@ -12,7 +12,9 @@ cmake_minimum_required(VERSION 3.22.1)
 project("test_cpp")
 
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v -stdlib=libc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v -stdlib=libc++ -I/Users/arjan/Documents/EdgeImpulse/Tools/Android/2.34.0.250424/include -Itensorflow-lite -I/Users/arjan/Documents/EdgeImpulse/Firmware/example-android-inferencing/example_static_buffer/app/src/main/cpp/tensorflow-lite")
+
+set(CMAKE_C_FLAGS "-v -stdlib=libc++ -I/Users/arjan/Documents/EdgeImpulse/Tools/Android/2.34.0.250424/include -Itensorflow-lite -Itensorflow-lite/tensorflow/lite/c")
 
 include(edge-impulse-sdk/cmake/utils.cmake)
 
@@ -23,8 +25,11 @@ set(EI_SDK_FOLDER edge-impulse-sdk)
 
 add_definitions(-DEI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP=1
     -DEI_CLASSIFIER_USE_FULL_TFLITE=1
+    -DEI_CLASSIFIER_USE_QNN_DELEGATES=1
     -DNDEBUG
 )
+
+set(LINKER_FLAGS "-L/Users/arjan/Documents/EdgeImpulse/Tools/Android/2.34.0.250424/lib/aarch64-android -lQnnTFLiteDelegate -L./tflite/android-arm64-v8a -Wl,--no-as-needed -ldl -ltensorflow-lite -lfarmhash -lfft2d_fftsg -lfft2d_fftsg2d -lruy -lXNNPACK -lcpuinfo -lpthreadpool -lpthread")
 
 link_directories(${CMAKE_SOURCE_DIR}/tflite/android64)
 

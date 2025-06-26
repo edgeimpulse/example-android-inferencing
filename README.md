@@ -17,7 +17,7 @@ See the [Android Documentation](https://docs.edgeimpulse.com/docs/run-inference/
 ### Workshop
 - Join: https://edgeimpulse.com/signup
 - Follow one of the tutorial guides for beginners [here](https://docs.edgeimpulse.com/docs/readme/for-beginners#tutorials-and-resources-for-beginners)
-- Export the C++ Binary [Visual Anomaly])(https://docs.edgeimpulse.com/docs/edge-impulse-studio/learning-blocks/visual-anomaly-detection)
+- Export the C++ Binary [Visual Anomaly](https://docs.edgeimpulse.com/docs/edge-impulse-studio/learning-blocks/visual-anomaly-detection)
 - GMM Cracks Demo on the workshop download the C++ export [here](https://drive.google.com/file/d/1oXP83vHUDs7iS6uuAlZilmrWyDYsBc9t/view?usp=sharing)
 - Follow the rest of this repo
 - Make a change to the [Kotlin](https://developer.android.com/get-started/codelabs) to build your own app around the runInference function

@@ -8,9 +8,19 @@ See the [Android Documentation](https://docs.edgeimpulse.com/docs/run-inference/
 
 ## Prerequisites
 
+- https://edgeimpulse.com/signup
+  
 ### Edge Impulse:
-- Ensure you have followed the **Android guide** and have a trained model.
+- Ensure you have followed the **[on Android guide](https://docs.edgeimpulse.com/docs/run-inference/cpp-library/running-your-impulse-android)** and have a trained model.
 - Export your model as a **C++ library** from **Edge Impulse Studio**.
+
+### Workshop
+- Join: https://edgeimpulse.com/signup
+- Follow one of the tutorial guides for beginners [here](https://docs.edgeimpulse.com/docs/readme/for-beginners#tutorials-and-resources-for-beginners)
+- Export the C++ Binary [Visual Anomaly])(https://docs.edgeimpulse.com/docs/edge-impulse-studio/learning-blocks/visual-anomaly-detection)
+- GMM Cracks Demo on the workshop download the C++ export [here](https://drive.google.com/file/d/1oXP83vHUDs7iS6uuAlZilmrWyDYsBc9t/view?usp=sharing)
+- Follow the rest of this repo
+- Make a change to the [Kotlin](https://developer.android.com/get-started/codelabs) to build your own app around the runInference function
 
 ### Android Development:
 - Install **Android Studio**.

@@ -15,12 +15,11 @@ See the [Android Documentation](https://docs.edgeimpulse.com/docs/run-inference/
 - Export your model as a **C++ library** from **Edge Impulse Studio**.
 
 ### Workshop
-- Join: https://edgeimpulse.com/signup
-- Follow one of the tutorial guides for beginners [here](https://docs.edgeimpulse.com/docs/readme/for-beginners#tutorials-and-resources-for-beginners)
-- Export the C++ Binary [Visual Anomaly](https://docs.edgeimpulse.com/docs/edge-impulse-studio/learning-blocks/visual-anomaly-detection)
-- GMM Cracks Demo on the workshop download the C++ export [here](https://drive.google.com/file/d/1oXP83vHUDs7iS6uuAlZilmrWyDYsBc9t/view?usp=sharing)
-- Follow the rest of this repo
-- Make a change to the [Kotlin](https://developer.android.com/get-started/codelabs) to build your own app around the runInference function
+- 1. Join: https://edgeimpulse.com/signup
+- 2. Follow one of the tutorial guides for beginners [here](https://docs.edgeimpulse.com/docs/readme/for-beginners#tutorials-and-resources-for-beginners)
+- 3. Export the C++ Binary [Visual Anomaly](https://docs.edgeimpulse.com/docs/edge-impulse-studio/learning-blocks/visual-anomaly-detection) or download the prebuilt GMM Cracks Demo on the workshop download the C++ export [here](https://drive.google.com/file/d/1oXP83vHUDs7iS6uuAlZilmrWyDYsBc9t/view?usp=sharing)
+- 4. Follow the rest of this repo
+- 5. Now knowledgable Android Developers can make a change to the [Kotlin](https://developer.android.com/get-started/codelabs) appliction logic to build your own app around the runInference function, e.g. count instances of detections, add thresholding to only detect beyond 70% of confidence, change the UI.
 
 ### Android Development:
 - Install **Android Studio**.
@@ -139,4 +138,28 @@ sensorManager.unregisterListener(this)
 Build and deploy the app on a WearOS device.
 Check logs for new sensor data.
 Ensure inference runs correctly with the additional inputs.
+
+
+
+### Troubleshooting, and other deployment hardware
+
+Testing on devices without ready access to a camera, like Device Cloud or VR headsets that dont allow you to use the passthrough camera:
+
+```
+override fun onResume() {
+    super.onResume()
+
+    //Read the asset
+    val bmp = assets.open("test.jpg").use { BitmapFactory.decodeStream(it) }
+
+    //Resize to the model’s input — helper does this for you
+    val resized = EIImageHelper.resizeBitmap(bmp)
+
+    //Run inference (synchronous, one-shot)
+    val result = EIClassifierImage.run(resized)
+
+    //Show scores in the existing TextView
+    runOnUiThread { resultText.text = result.format() }
+}
+```
 

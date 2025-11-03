@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Camera2 preview surface -->
+    <TextureView
+        android:id="@+id/textureView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Overlay for drawing boxes -->
+    <com.example.test_camera.BoundingBoxOverlay
+        android:id="@+id/boundingBoxOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <!-- Status / results -->
+    <TextView
+        android:id="@+id/resultTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:padding="12dp"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:background="#66000000"
+        android:text="…" />
+</FrameLayout>

@@ -1,0 +1,3 @@
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/.cxx/Debug/5uoz5u4z/arm64-v8a/CMakeFiles/audiospot.dir
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/.cxx/Debug/5uoz5u4z/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/.cxx/Debug/5uoz5u4z/arm64-v8a/CMakeFiles/rebuild_cache.dir

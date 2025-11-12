@@ -10,7 +10,7 @@ Fully tested on Vision for: FOMO AD, Object Detection, and on sensor data for KW
 
 
 If you want to run 32bit libs you will also need to change the build type from 64bit to 32bit
-`example-android-inferencing-motorola/example_motion_WearOS/app/build.gradle.kts`
+`example-android-inferencing-main/example_motion_WearOS/app/build.gradle.kts`
 
 
 ```

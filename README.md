@@ -6,6 +6,20 @@ This repository contains a minimal example for running an **Edge Impulse** machi
 
 Fully tested on Vision for: FOMO AD, Object Detection, and on sensor data for KWS, and accelerometer with WearOS
 
+## Note on 32bit
+
+
+If you want to run 32bit libs you will also need to change the build type from 64bit to 32bit
+`example-android-inferencing-motorola/example_motion_WearOS/app/build.gradle.kts`
+
+
+```
+
+ndk {
+            abiFilters += "arm64-v8a" //-> armeabi-v7a
+        }
+```
+
 See the [Android Documentation](https://docs.edgeimpulse.com/docs/run-inference/cpp-library/running-your-impulse-android).
 
 ## Prerequisites

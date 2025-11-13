@@ -1,0 +1,26 @@
+# ninja log v5
+0	14	0	clean	a358b90f8bd46385
+4	361	1758195640981150793	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/mingw32/ei_classifier_porting.cpp.o	a5d73bd45be2e52a
+6	2415	1758208106655959078	CMakeFiles/audiospot.dir/native-lib.cpp.o	4852cb9c5122d529
+4	737	1758195641356721982	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/memory.cpp.o	2753c778a7fcfdf1
+3	432	1758195641052359221	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/kissfft/kiss_fft.cpp.o	2ebb0b094d08ca3
+4	428	1758195641049005506	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/kissfft/kiss_fftr.cpp.o	d378c8031f8f9b67
+5	424	1758195641044771842	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/posix/ei_classifier_porting.cpp.o	8e7a78177c18c938
+5	332	1758195640948845836	CMakeFiles/audiospot.dir/edge-impulse-sdk/tensorflow/lite/c/common.c.o	b5077317bf3a64a9
+3	332	1758195640948846211	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/dct/fast-dct-fft.cpp.o	ebf8290845f477eb
+4	379	1758195640999171273	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/posix/debug_log.cpp.o	a9c04760e99871b4
+5	332	1758195640948850420	CMakeFiles/audiospot.dir/tflite-model/tflite_learn_42047_8.cpp.o	ebc1ef82bf40dbb
+2416	3163	1758208107004147153	/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/build/intermediates/cxx/Debug/5uoz5u4z/obj/arm64-v8a/libaudiospot.so	3ae67de21fabd9aa
+4	360	1758195640981141293	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/mingw32/debug_log.cpp.o	b25917541947493c
+4	251	1758208141682631630	CMakeFiles/audiospot.dir/edge-impulse-sdk/tensorflow/lite/c/common.c.o	3139baade2d2ee1b
+4	251	1758208141682645589	CMakeFiles/audiospot.dir/tflite-model/tflite_learn_42047_8.cpp.o	862f915d9f9ab33b
+5	251	1758208141682716632	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/dct/fast-dct-fft.cpp.o	b8e3bb1f95a1121b
+6	290	1758208141723532525	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/mingw32/debug_log.cpp.o	a7069fee2eb76d9
+6	301	1758208141734877732	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/mingw32/ei_classifier_porting.cpp.o	2785692862f2ebb
+3	335	1758208141770414717	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/posix/debug_log.cpp.o	6278cfc299d31a61
+4	395	1758208141829502593	CMakeFiles/audiospot.dir/edge-impulse-sdk/porting/posix/ei_classifier_porting.cpp.o	49b49b33e044885f
+5	413	1758208141848428382	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/kissfft/kiss_fftr.cpp.o	50c86136a31e5b54
+4	521	1758208141956847087	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/kissfft/kiss_fft.cpp.o	708d954427977a13
+5	792	1758208142224342022	CMakeFiles/audiospot.dir/edge-impulse-sdk/dsp/memory.cpp.o	3d348fa430e177c9
+4	3217	1758208144624378145	CMakeFiles/audiospot.dir/native-lib.cpp.o	5d5ad75be41f032b
+3218	3716	1758208144962507625	/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/build/intermediates/cxx/Debug/5uoz5u4z/obj/arm64-v8a/libaudiospot.so	3ae67de21fabd9aa

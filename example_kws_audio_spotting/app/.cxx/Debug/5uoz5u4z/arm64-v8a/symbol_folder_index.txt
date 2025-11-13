@@ -1,0 +1,1 @@
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/build/intermediates/cxx/Debug/5uoz5u4z/obj/arm64-v8a

@@ -1,0 +1,2 @@
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/src/main/cpp/CMakeLists.txt
+/Users/eoinjordan/Downloads/example-android-inferencing-main-kws/example_kws/app/src/main/cpp/edge-impulse-sdk/cmake/utils.cmake

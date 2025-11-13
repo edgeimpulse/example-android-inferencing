@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/txtInfo"
+        android:text="Model: ..."
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <TextView
+        android:id="@+id/txtStatus"
+        android:text="Idle"
+        android:textSize="22sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp" />
+
+    <TextView
+        android:id="@+id/txtConfidence"
+        android:text="Confidence: --"
+        android:textSize="18sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="4dp" />
+
+    <TextView
+        android:id="@+id/txtTop1"
+        android:text="Top-1: --"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="2dp" />
+
+    <TextView
+        android:id="@+id/txtRms"
+        android:text="RMS: --"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="2dp" />
+
+    <!-- Live waveform -->
+    <com.example.audio_spotting.WaveformView
+        android:id="@+id/waveform"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="8dp" />
+
+    <!-- Threshold slider -->
+    <TextView
+        android:id="@+id/txtThreshVal"
+        android:text="Trigger ≥ 0.70"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp" />
+
+    <SeekBar
+        android:id="@+id/sbThreshold"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="99"
+        android:progress="70" />
+
+    <Button
+        android:id="@+id/btnToggle"
+        android:text="Start Listening"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#444"
+        android:layout_marginTop="12dp" />
+
+    <TextView
+        android:id="@+id/txtTranscript"
+        android:text="Transcript will appear here (online only)"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" />
+</LinearLayout>

@@ -175,6 +175,7 @@ override fun onResume() {
 If you want to run 32bit libs you will also need to change the build type from 64bit to 32bit
 `example-android-inferencing-main/example_motion_WearOS/app/build.gradle.kts`
 
+This is the flag to add:
 
 ```
 
@@ -183,7 +184,14 @@ ndk {
         }
 ```
 
-## Also for 32bit CMakeLists will need some modification for 2.19 version of tflite
+### Also for 32bit CMakeLists will need some modification for 2.19 version of tflite
+
+Our original CMakeLists.txt used these two commands to link the libraries:
+link_directories(${CMAKE_SOURCE_DIR}/tflite/android32)
+target_link_libraries(test_cpp ... tensorflow-lite XNNPACK ...)
+
+This needs to change to:
+
 ```
 # For more information about using CMake with Android Studio, read the
 # documentation: https://d.android.com/studio/projects/add-native-code.html.

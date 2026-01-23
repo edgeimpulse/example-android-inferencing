@@ -1,0 +1,3 @@
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/CMakeLists.txt
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/prepare/CMakeLists.txt
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/speech_to_image/CMakeLists.txt

@@ -1,0 +1,138 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "speech_to_image",
+					"jsonFile" : "directory-speech_to_image-Debug-fb6f16ec53ff5864ee3c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "speech_to_image",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "prepare",
+					"jsonFile" : "directory-prepare-Debug-d6c49f80286aae05fa7c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 2,
+					"source" : "prepare",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "qnn-models-native",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "speech_to_image-native",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "prepare-native",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 2,
+					"id" : "prepare-native::@cb46d872555e1d67cc50",
+					"jsonFile" : "target-prepare-native-Debug-fecb8d10440afd2d50c5.json",
+					"name" : "prepare-native",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "qnn-models-native::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-qnn-models-native-Debug-aa46346b4b6d29c9efb6.json",
+					"name" : "qnn-models-native",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "speech_to_image-native::@916b0560021147358c84",
+					"jsonFile" : "target-speech_to_image-native-Debug-668044b00e71fbd6c0a7.json",
+					"name" : "speech_to_image-native",
+					"projectIndex" : 1
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a",
+		"source" : "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

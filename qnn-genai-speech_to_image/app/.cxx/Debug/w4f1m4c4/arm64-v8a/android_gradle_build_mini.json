@@ -1,0 +1,45 @@
+{
+  "buildFiles": [
+    "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/CMakeLists.txt",
+    "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/prepare/CMakeLists.txt",
+    "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/cpp/speech_to_image/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/eoinjordan/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/eoinjordan/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "qnn-models-native::@6890427a1f51a3e7e1df": {
+      "artifactName": "qnn-models-native",
+      "abi": "arm64-v8a",
+      "runtimeFiles": []
+    },
+    "speech_to_image-native::@916b0560021147358c84": {
+      "artifactName": "speech_to_image-native",
+      "abi": "arm64-v8a",
+      "output": "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/build/intermediates/cxx/Debug/w4f1m4c4/obj/arm64-v8a/libspeech_to_image-native.so",
+      "runtimeFiles": [
+        "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/jniLibs/arm64-v8a/libQnnHtp.so",
+        "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/jniLibs/arm64-v8a/libQnnHtpPrepare.so",
+        "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/jniLibs/arm64-v8a/libQnnSystem.so",
+        "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/src/main/jniLibs/arm64-v8a/libc++_shared.so"
+      ]
+    },
+    "prepare-native::@cb46d872555e1d67cc50": {
+      "artifactName": "prepare-native",
+      "abi": "arm64-v8a",
+      "output": "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/build/intermediates/cxx/Debug/w4f1m4c4/obj/arm64-v8a/libprepare-native.so",
+      "runtimeFiles": []
+    }
+  }
+}

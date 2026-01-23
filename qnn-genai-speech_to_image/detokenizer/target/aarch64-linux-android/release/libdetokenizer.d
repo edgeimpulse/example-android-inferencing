@@ -1,0 +1,1 @@
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/detokenizer/target/aarch64-linux-android/release/libdetokenizer.so: /Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/detokenizer/src/lib.rs

@@ -1,0 +1,9 @@
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/qnn-models-native.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/rebuild_cache.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/speech_to_image/CMakeFiles/speech_to_image-native.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/speech_to_image/CMakeFiles/edit_cache.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/speech_to_image/CMakeFiles/rebuild_cache.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/prepare/CMakeFiles/prepare-native.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/prepare/CMakeFiles/edit_cache.dir
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/prepare/CMakeFiles/rebuild_cache.dir

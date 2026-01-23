@@ -1,0 +1,10 @@
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/detokenizer/target/aarch64-linux-android/release/deps/esaxx_rs-b3e813f4c6e469df.d: /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/lib.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/esa.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/sais.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/types.rs
+
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/detokenizer/target/aarch64-linux-android/release/deps/libesaxx_rs-b3e813f4c6e469df.rlib: /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/lib.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/esa.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/sais.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/types.rs
+
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/detokenizer/target/aarch64-linux-android/release/deps/libesaxx_rs-b3e813f4c6e469df.rmeta: /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/lib.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/esa.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/sais.rs /Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/types.rs
+
+/Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/lib.rs:
+/Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/esa.rs:
+/Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/sais.rs:
+/Users/eoinjordan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esaxx-rs-0.1.10/src/types.rs:

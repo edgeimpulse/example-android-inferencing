@@ -1,0 +1,75 @@
+{
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target"
+		],
+		"files" : 
+		[
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 8,
+				"parent" : 0
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"id" : "speech_to_image-native::@916b0560021147358c84"
+		},
+		{
+			"id" : "prepare-native::@cb46d872555e1d67cc50"
+		}
+	],
+	"id" : "qnn-models-native::@6890427a1f51a3e7e1df",
+	"name" : "qnn-models-native",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 1,
+			"isGenerated" : true,
+			"path" : "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/qnn-models-native",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/qnn-models-native.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}

@@ -1,0 +1,2 @@
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/qnn-models-native
+/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/.cxx/Debug/w4f1m4c4/arm64-v8a/CMakeFiles/qnn-models-native.rule

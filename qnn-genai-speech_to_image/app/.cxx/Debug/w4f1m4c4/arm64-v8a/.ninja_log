@@ -1,0 +1,27 @@
+# ninja log v5
+0	27	0	clean	a358b90f8bd46385
+5	1655	1769168070670978472	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Utils/DataUtil.cpp.o	bd33e23bb03bdea0
+5	1391	1769168070406936307	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/SpeechToImage.cpp.o	a084f2ffe6b9a78b
+5	1555	1769168070571033540	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Utils/IOTensor.cpp.o	a240bb30829d6170
+6	1094	1769168070113991430	prepare/CMakeFiles/prepare-native.dir/prepare-native.cpp.o	58fa1817b7ed2b06
+4	1273	1769168070294407248	speech_to_image/CMakeFiles/speech_to_image-native.dir/speech_to_image-native.cpp.o	727f1a683d74ad9
+4	998	1769168070015551165	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/LogMel/src/preprocess.cpp.o	661f301f9bbe679
+4	988	1769168070007054955	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Log/AndroidLogger.cpp.o	8bf44efbd33a1079
+5	2154	1769168071157459210	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Utils/QnnSpeechToImageUtils.cpp.o	1b9e06096bd52aeb
+6	1076	1769168070095657927	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Utils/raw_image_to_png.cpp.o	600ddee555b8f056
+5	996	1769168070018197249	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Utils/DynamicLoadUtil.cpp.o	af6307d877caa7ba
+4	1457	1769168070475456692	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/QnnSpeechToImage.cpp.o	ff76405dd2ea8149
+1094	1326	1769168070349850840	/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/build/intermediates/cxx/Debug/w4f1m4c4/obj/arm64-v8a/libprepare-native.so	ecb0c6f4ba3b3058
+6	838	1769168069858656059	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/float16.cpp.o	4c8b39d72e94521d
+10	117	1769168085892640819	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/LogMel/src/wavreader.cpp.o	b55c876862c4fe6b
+10	189	1769168085965484495	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/common/StringOp.cpp.o	fc03df44c0701a87
+10	229	1769168086005921751	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/WrapperUtils/QnnWrapperUtils.cpp.o	e65c12278819f787
+9	760	1769168086512080285	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Log/LogUtils.cpp.o	96d89868b87ddbe3
+9	832	1769168086606006383	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/linux/DynamicLoading.cpp.o	8c51fea22a17a41d
+10	843	1769168086613192092	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/common/GetOpt.cpp.o	40207c759b8625f2
+9	1013	1769168086785258285	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/linux/Path.cpp.o	42874eb76389b230
+8	1076	1769168086845971919	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/Log/Logger.cpp.o	67e59c43e8017c72
+9	1171	1769168086933093431	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/linux/FileOp.cpp.o	5806af25396a46f2
+9	1174	1769168086947447891	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/PAL/src/linux/Directory.cpp.o	b5028dadb28dfa6d
+10	1392	1769168087162465090	speech_to_image/CMakeFiles/speech_to_image-native.dir/src/LogMel/src/log_mel_spectrogram.cpp.o	254b1796ccfedbce
+1392	1502	1769168087265263814	/Users/eoinjordan/git/qidk/Solutions/GenAI/speech_to_image/speech_to_image/app/build/intermediates/cxx/Debug/w4f1m4c4/obj/arm64-v8a/libspeech_to_image-native.so	4389aab3b3f9ab39

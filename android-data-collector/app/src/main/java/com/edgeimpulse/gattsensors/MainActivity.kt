@@ -28,7 +28,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings as AndroidSettings
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -184,8 +192,11 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
-    val sensorData by viewModel.sensorData.collectAsState()
-    var isRunning  by remember { mutableStateOf(false) }
+    val sensorData  by viewModel.sensorData.collectAsState()
+    val isRunning   by viewModel.isCollecting.collectAsState()
+    val eiConnected by viewModel.eiConnected.collectAsState()
+    val eiError     by viewModel.eiConnectionError.collectAsState()
+
     var label      by remember { mutableStateOf("") }
     var offlineOn  by remember { mutableStateOf(false) }
     var statusMsg  by remember { mutableStateOf("") }
@@ -194,6 +205,13 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     var dropdownOpen   by remember { mutableStateOf(false) }
     var selectedSensor by remember { mutableStateOf(sensorOptions[0]) }
 
+    // Duration state
+    val durationPresets = listOf(1, 2, 10, 20)
+    var sliderValue      by remember { mutableFloatStateOf(2f) }
+    var customDuration   by remember { mutableStateOf("") }  // for > 100 s
+    val effectiveDurationSec: Int = customDuration.toIntOrNull()?.takeIf { it > 0 }
+        ?: sliderValue.toInt().coerceAtLeast(1)
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -201,7 +219,43 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
-        // ── Section: Sensor picker ──────────────────────────────────────────
+        // ── EI remote-management connection banner ──────────────────────────
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (eiConnected) Color(0xFF1B5E20) else Color(0xFF37474F),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (eiConnected) "Connected to Edge Impulse Studio"
+                        else "Not connected to Edge Impulse",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (!eiConnected && eiError.isNotBlank()) {
+                        Text(eiError, color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if (!eiConnected) {
+                    TextButton(onClick = { viewModel.reconnectEI() }) {
+                        Text("Retry", color = MaterialTheme.colorScheme.primary)
+                    }
+                } else {
+                    Icon(Icons.Default.CloudDone, contentDescription = null, tint = Color.White)
+                }
+            }
+        }
+
+        // ── Section: Sensor picker ─────────────────────────────────────────
         item {
             Text("Data source", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
@@ -229,7 +283,7 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── Section: Label ─────────────────────────────────────────────────
+        // ── Section: Label ──────────────────────────────────────────────────
         item {
             OutlinedTextField(
                 value         = label,
@@ -241,8 +295,68 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             )
         }
 
-        // ── Section: Collection controls ───────────────────────────────────
+        // ── Section: Duration ───────────────────────────────────────────────
         item {
+            HorizontalDivider()
+            Text("Sample duration", style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary)
+        }
+        item {
+            // Quick-pick chips
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                durationPresets.forEach { sec ->
+                    FilterChip(
+                        selected = customDuration.isEmpty() && sliderValue.toInt() == sec,
+                        onClick  = { sliderValue = sec.toFloat(); customDuration = "" },
+                        label    = { Text("${sec}s") }
+                    )
+                }
+            }
+        }
+        item {
+            // Slider 1–100 s
+            Column {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (customDuration.isNotBlank()) "Custom: ${customDuration}s"
+                        else "${sliderValue.toInt()} s",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text("1 – 100 s", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Slider(
+                    value         = sliderValue,
+                    onValueChange = { sliderValue = it; customDuration = "" },
+                    valueRange    = 1f..100f,
+                    steps         = 98,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        item {
+            // Extended duration (> 100 s)
+            OutlinedTextField(
+                value         = customDuration,
+                onValueChange = { customDuration = it },
+                label         = { Text("Custom duration (s)") },
+                placeholder   = { Text("Enter any value > 100") },
+                singleLine    = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier      = Modifier.fillMaxWidth(),
+                trailingIcon  = { Text("s", modifier = Modifier.padding(end = 12.dp)) }
+            )
+        }
+
+        // ── Section: Collection controls ────────────────────────────────────────
+        item {
+            HorizontalDivider()
             Text("Collection", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
         }
@@ -250,17 +364,19 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     modifier = Modifier.weight(1f),
-                    enabled  = !isRunning,
+                    enabled  = !isRunning && label.isNotBlank(),
                     onClick  = {
-                        viewModel.startSensor(selectedSensor)
                         if (offlineOn) viewModel.startOfflineLogging()
-                        isRunning = true
-                        statusMsg = "Collecting $selectedSensor…"
+                        viewModel.startSensorForDuration(
+                            selectedSensor,
+                            effectiveDurationSec * 1000L
+                        )
+                        statusMsg = "Collecting ${selectedSensor} for ${effectiveDurationSec}s…"
                     }
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
-                    Text("Start")
+                    Text("Start (${effectiveDurationSec}s)")
                 }
                 Button(
                     modifier = Modifier.weight(1f),
@@ -271,7 +387,6 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                     onClick  = {
                         viewModel.stopSensor()
                         if (offlineOn) viewModel.stopOfflineLogging()
-                        isRunning = false
                         statusMsg = "Stopped."
                     }
                 ) {
@@ -282,7 +397,7 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── Section: Offline CSV toggle + upload ───────────────────────────
+        // ── Section: Offline CSV toggle + upload ───────────────────────────────
         item {
             HorizontalDivider()
             Text("Offline logging", style = MaterialTheme.typography.labelLarge,
@@ -301,7 +416,7 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 enabled  = label.isNotBlank(),
                 onClick  = {
                     viewModel.uploadStoredCsvFiles(label)
-                    statusMsg = "Uploading CSV files with label '$label'…"
+                    statusMsg = "Uploading CSV files with label ‘$label’…"
                 }
             ) {
                 Icon(Icons.Default.Upload, contentDescription = null)
@@ -318,45 +433,100 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
         }
         item {
             val context = LocalContext.current
-            var hasCameraPermission by remember {
-                mutableStateOf(
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                        == PackageManager.PERMISSION_GRANTED
-                )
+            val activity = context as android.app.Activity
+            val lifecycleOwner = LocalLifecycleOwner.current
+
+            fun hasCamPerm() = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+
+            var hasCameraPermission by remember { mutableStateOf(hasCamPerm()) }
+
+            // Re-check on every resume so the UI reflects changes made in system Settings.
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        val nowGranted = hasCamPerm()
+                        hasCameraPermission = nowGranted
+                        if (nowGranted) cameraHelper.bindToLifecycle(lifecycleOwner)
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
             }
+
             val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                 androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
             ) { granted ->
                 hasCameraPermission = granted
                 if (granted) {
-                    viewModel.captureAndUploadImage(cameraHelper, label)
-                    statusMsg = "Capturing image…"
+                    cameraHelper.bindToLifecycle(lifecycleOwner)
                 } else {
-                    statusMsg = "Camera permission denied — grant it in Settings"
+                    statusMsg = if (!activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
+                        "Permission permanently denied \u2014 tap \"Open Settings\" below"
+                    else
+                        "Camera permission denied"
                 }
             }
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled  = label.isNotBlank(),
-                onClick  = {
-                    if (hasCameraPermission) {
-                        viewModel.captureAndUploadImage(cameraHelper, label)
-                        statusMsg = "Capturing image…"
-                    } else {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+
+            // If the system will never show the dialog again, send the user to Settings.
+            val permanentlyDenied = !hasCameraPermission &&
+                !activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!hasCameraPermission) {
+                    // Grant / open-settings button \u2014 always enabled, no label needed
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            if (permanentlyDenied) {
+                                context.startActivity(
+                                    Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                )
+                            } else {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.NoPhotography, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (permanentlyDenied) "Open Settings to grant camera" else "Grant camera permission")
                     }
                 }
-            ) {
-                Icon(
-                    if (hasCameraPermission) Icons.Default.CameraAlt else Icons.Default.NoPhotography,
-                    contentDescription = null
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(if (hasCameraPermission) "Capture & upload image" else "Grant camera & capture")
+                // Capture button \u2014 only usable once permission is granted and a label is set
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled  = hasCameraPermission && label.isNotBlank(),
+                    onClick  = {
+                        viewModel.captureAndUploadImage(cameraHelper, label)
+                        statusMsg = "Capturing image\u2026"
+                    }
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Capture & upload image")
+                }
+                when {
+                    !hasCameraPermission -> Text(
+                        if (permanentlyDenied)
+                            "Camera access was permanently denied. Open Settings and enable the Camera permission."
+                        else
+                            "Grant camera permission to capture images.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    label.isBlank() -> Text(
+                        "Enter a label above to enable capture.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
-
-        // ── Section: Live readout ───────────────────────────────────────────
+        // ── Section: Live readout ─────────────────────────────────────────────
         if (sensorData != null) {
             item {
                 HorizontalDivider()

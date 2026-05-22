@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GATTSensors" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/ei_primary_blue</item>
+        <item name="android:colorAccent">@color/ei_primary_purple</item>
+        <item name="android:windowBackground">@color/ei_darker_blue</item>
+        <item name="android:textColor">@color/ei_off_white</item>
+    </style>
+</resources>

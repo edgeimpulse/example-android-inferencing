@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+/build/
+**/build/
+*.iml
+
+# Android Studio / IntelliJ IDEA
+/.idea/
+.idea/
+*.iml
+
+# Local configuration
+local.properties
+
+# Kotlin incremental compilation
+.kotlin/
+
+# OS junk
+.DS_Store
+*.hprof
+
+# Keep the sample APK
+!sample-apk/*.apk

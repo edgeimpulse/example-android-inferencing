@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ei_primary_purple">#8C4DFF</color>
+    <color name="ei_primary_blue">#4D7BFF</color>
+    <color name="ei_dark_blue">#1E2A4A</color>
+    <color name="ei_darker_blue">#131B32</color>
+    <color name="ei_off_white">#E6E9EF</color>
+    <color name="ei_white">#FFFFFF</color>
+    <color name="ei_red">#FF5B5B</color>
+</resources>

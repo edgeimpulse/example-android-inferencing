@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Edge Impulse "ei" wordmark.
+  Adaptive icon canvas: 108x108. Safe inner area: ~66x66 centered at (54,54).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- lowercase "e" -->
+    <path
+        android:fillColor="#A7F400"
+        android:pathData="M30,58
+                          a14,14 0 1,1 26,8
+                          l-5,-3
+                          a9,9 0 1,0 -16,-6
+                          h18
+                          a14,14 0 0,1 -23,1 Z" />
+
+    <!-- lowercase "i" stem -->
+    <path
+        android:fillColor="#A7F400"
+        android:pathData="M62,46 h6 v26 h-6 Z" />
+
+    <!-- "i" dot -->
+    <path
+        android:fillColor="#A7F400"
+        android:pathData="M65,38 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+
+    <!-- pulse line baseline -->
+    <path
+        android:fillColor="#A7F400"
+        android:pathData="M22,82 h30 l3,-6 l4,12 l4,-9 l3,3 h20 v3 h-21 l-3,-3 l-4,9 l-4,-12 l-2,3 h-30 Z" />
+</vector>

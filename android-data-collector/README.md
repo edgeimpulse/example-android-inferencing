@@ -86,7 +86,7 @@ Use this when you have no data connection (e.g. outdoors, factory floor):
 
 ### Zephyr BLE (EI-Monitor firmware)
 
-The **Zephyr BLE** tab connects to a Nordic Thingy:53 running the companion [`ei-zephyr-ble-gatt-client`](../ei-zephyr-ble-gatt-client) firmware. The Thingy runs Edge Impulse inference locally and pushes results + raw IMU windows to the phone over BLE GATT, which are then relayed to your Edge Impulse project.
+The **Zephyr BLE** tab connects to a Nordic Thingy:53 running the companion [`ei-zephyr-ble-gatt-client`](https://github.com/edgeimpulse/ei-zephyr-ble-gatt-client/) firmware. The Thingy runs Edge Impulse inference locally and pushes results + raw IMU windows to the phone over BLE GATT, which are then relayed to your Edge Impulse project.
 
 1. Flash the Thingy:53 with the `ei-zephyr-ble-gatt-client` firmware.
 2. Open the **Zephyr BLE** tab.

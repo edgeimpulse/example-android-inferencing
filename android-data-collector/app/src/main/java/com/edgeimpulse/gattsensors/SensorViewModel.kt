@@ -13,7 +13,8 @@ class SensorViewModel(
     private val gattServerManager: GattServerManager,
     private val edgeImpulseManager: EdgeImpulseManager,
     private val dataRepository: DataRepository,
-    val zephyrBLEClient: ZephyrBLEClient
+    val zephyrBLEClient: ZephyrBLEClient,
+    val apiKeyStore: ApiKeyStore
 ) : AndroidViewModel(application) {
 
     private val _sensorData = MutableStateFlow<SensorData?>(null)

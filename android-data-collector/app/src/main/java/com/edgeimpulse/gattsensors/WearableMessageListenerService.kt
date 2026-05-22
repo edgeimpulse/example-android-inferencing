@@ -9,7 +9,7 @@ class WearableMessageListenerService : WearableListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        dataRepository = DataRepository(applicationContext)
+        dataRepository = DataRepository(applicationContext, ApiKeyStore(applicationContext))
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {

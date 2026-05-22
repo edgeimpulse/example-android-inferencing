@@ -22,7 +22,7 @@ data class IngestionRequest(val protected: Protected, val payload: IngestionPayl
 data class Protected(val ver: String, val alg: String, val signature: String)
 data class IngestionPayload(val device_name: String, val device_type: String, val interval_ms: Number, val sensors: List<SensorInfo>, val values: List<List<Float>>)
 
-class DataRepository(private val context: Context) {
+class DataRepository(private val context: Context, private val apiKeyStore: ApiKeyStore) {
 
     private val client = OkHttpClient()
     private val gson = Gson()
@@ -104,7 +104,7 @@ class DataRepository(private val context: Context) {
 
         val request = Request.Builder()
             .url("https://ingestion.edgeimpulse.com$path")
-            .header("x-api-key", BuildConfig.EI_API_KEY)
+            .header("x-api-key", apiKeyStore.get())
             .header("x-label", label)
             .header("x-hmac-key", hmacKey)
             .post(gson.toJson(requestBody).toRequestBody("application/json".toMediaType()))
@@ -133,7 +133,7 @@ class DataRepository(private val context: Context) {
 
         val request = Request.Builder()
             .url("https://ingestion.edgeimpulse.com/api/training/files")
-            .header("x-api-key", BuildConfig.EI_API_KEY)
+            .header("x-api-key", apiKeyStore.get())
             .header("x-label", label)
             .post(requestBody)
             .build()
@@ -181,7 +181,7 @@ class DataRepository(private val context: Context) {
 
         val request = Request.Builder()
             .url("https://ingestion.edgeimpulse.com/api/training/data")
-            .header("x-api-key", BuildConfig.EI_API_KEY)
+            .header("x-api-key", apiKeyStore.get())
             .header("x-label", result.label)
             .post(gson.toJson(requestBody).toRequestBody("application/json".toMediaType()))
             .build()
@@ -221,7 +221,7 @@ class DataRepository(private val context: Context) {
         val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
         val request = Request.Builder()
             .url("https://ingestion.edgeimpulse.com/api/training/data")
-            .header("x-api-key", BuildConfig.EI_API_KEY)
+            .header("x-api-key", apiKeyStore.get())
             .header("x-label", label)
             .header("Content-Type", "image/jpeg")
             .post(requestBody)

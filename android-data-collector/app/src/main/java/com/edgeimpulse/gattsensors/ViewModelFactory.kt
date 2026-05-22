@@ -12,15 +12,16 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
             val bluetoothManager =
                 application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             val bluetoothAdapter = bluetoothManager.adapter
-            val dataRepository      = DataRepository(application)
+            val apiKeyStore         = ApiKeyStore(application)
+            val dataRepository      = DataRepository(application, apiKeyStore)
             val gattServerManager   = GattServerManager(application, bluetoothAdapter)
             val collector           = SensorCollector(application, dataRepository, gattServerManager)
-            val edgeImpulseManager  = EdgeImpulseManager(BuildConfig.EI_API_KEY, dataRepository)
+            val edgeImpulseManager  = EdgeImpulseManager(apiKeyStore, dataRepository)
             val zephyrBLEClient     = ZephyrBLEClient(application, dataRepository)
             @Suppress("UNCHECKED_CAST")
             return SensorViewModel(
                 application, collector, gattServerManager,
-                edgeImpulseManager, dataRepository, zephyrBLEClient
+                edgeImpulseManager, dataRepository, zephyrBLEClient, apiKeyStore
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

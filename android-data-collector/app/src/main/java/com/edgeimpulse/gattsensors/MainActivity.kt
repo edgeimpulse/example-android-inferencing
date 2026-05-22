@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,10 +21,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 // Edge Impulse brand palette (matches docs.edgeimpulse.com)
@@ -103,7 +109,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     MaterialTheme(colorScheme = EIDarkTheme) {
-        var selectedTab by remember { mutableIntStateOf(0) }
+        var selectedTab    by remember { mutableIntStateOf(0) }
+        var showSettings   by remember { mutableStateOf(false) }
+
+        // ── API-key settings dialog ─────────────────────────────────────────
+        if (showSettings) {
+            ApiKeyDialog(
+                apiKeyStore = viewModel.apiKeyStore,
+                onDismiss   = { showSettings = false }
+            )
+        }
 
         Scaffold(
             topBar = {
@@ -113,6 +128,15 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                             "Edge Impulse Data Collector",
                             fontWeight = FontWeight.Bold,
                         )
+                    },
+                    actions = {
+                        IconButton(onClick = { showSettings = true }) {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = "API key settings",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = EIDarkTheme.surface,
@@ -293,17 +317,42 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 color = MaterialTheme.colorScheme.primary)
         }
         item {
+            val context = LocalContext.current
+            var hasCameraPermission by remember {
+                mutableStateOf(
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                        == PackageManager.PERMISSION_GRANTED
+                )
+            }
+            val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                hasCameraPermission = granted
+                if (granted) {
+                    viewModel.captureAndUploadImage(cameraHelper, label)
+                    statusMsg = "Capturing image…"
+                } else {
+                    statusMsg = "Camera permission denied — grant it in Settings"
+                }
+            }
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 enabled  = label.isNotBlank(),
                 onClick  = {
-                    viewModel.captureAndUploadImage(cameraHelper, label)
-                    statusMsg = "Capturing image…"
+                    if (hasCameraPermission) {
+                        viewModel.captureAndUploadImage(cameraHelper, label)
+                        statusMsg = "Capturing image…"
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
                 }
             ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                Icon(
+                    if (hasCameraPermission) Icons.Default.CameraAlt else Icons.Default.NoPhotography,
+                    contentDescription = null
+                )
                 Spacer(Modifier.width(6.dp))
-                Text("Capture & upload image")
+                Text(if (hasCameraPermission) "Capture & upload image" else "Grant camera & capture")
             }
         }
 
@@ -466,6 +515,100 @@ fun ZephyrBLEScreen(viewModel: SensorViewModel) {
             }
         }
     }
+}
+
+// =============================================================================
+// API-key settings dialog
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
+    val currentKey   by apiKeyStore.apiKey.collectAsState()
+    var draft        by remember(currentKey) { mutableStateOf(currentKey) }
+    var showKey      by remember { mutableStateOf(false) }
+    val hasOverride       = apiKeyStore.hasOverride()
+    val buildTimeKey = runCatching { BuildConfig.EI_API_KEY }.getOrElse { "" }
+    val isUsingBuild = !hasOverride && buildTimeKey.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edge Impulse API key", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Status chip
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val (chipColor, chipText) = when {
+                        hasOverride    -> Pair(Color(0xFF1B5E20), "Runtime override active")
+                        isUsingBuild   -> Pair(Color(0xFF1565C0), "Using build-time key")
+                        else           -> Pair(MaterialTheme.colorScheme.error, "No key set — uploads will fail")
+                    }
+                    Surface(
+                        color  = chipColor,
+                        shape  = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            chipText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style    = MaterialTheme.typography.labelSmall,
+                            color    = Color.White
+                        )
+                    }
+                }
+
+                Text(
+                    "Enter your project API key from Edge Impulse Studio → Dashboard → Keys. " +
+                    "Leave blank to use the build-time key from gradle.properties.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value         = draft,
+                    onValueChange = { draft = it },
+                    label         = { Text("API key (ei_…)") },
+                    placeholder   = { Text("ei_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth(),
+                    visualTransformation = if (showKey) VisualTransformation.None
+                                          else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon  = {
+                        IconButton(onClick = { showKey = !showKey }) {
+                            Icon(
+                                if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showKey) "Hide key" else "Show key"
+                            )
+                        }
+                    }
+                )
+
+                if (hasOverride) {
+                    TextButton(
+                        onClick = { apiKeyStore.set(""); onDismiss() },
+                        colors  = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null,
+                            modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Clear override — revert to build-time key")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                apiKeyStore.set(draft)
+                onDismiss()
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 // =============================================================================

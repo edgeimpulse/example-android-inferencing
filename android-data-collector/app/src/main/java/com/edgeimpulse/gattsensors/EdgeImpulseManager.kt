@@ -29,7 +29,7 @@ data class HelloResponse(val hello: Boolean, val err: String?)
 data class SampleRequest(val sample: SampleRequestMessage)
 data class SampleRequestMessage(val label: String, val length: Int, val path: String, val hmacKey: String, val interval: Int, val sensor: String)
 
-class EdgeImpulseManager(apiKey: String, private val repository: DataRepository) {
+class EdgeImpulseManager(private val apiKeyStore: ApiKeyStore, private val repository: DataRepository) {
 
     private val client: OkHttpClient
     private var webSocket: WebSocket? = null
@@ -81,7 +81,7 @@ class EdgeImpulseManager(apiKey: String, private val repository: DataRepository)
             SensorInfo("EEG", listOf(), 600),
             SensorInfo("ECG", listOf(), 600)
         )
-        val hello = Hello(HelloMessage(3, BuildConfig.EI_API_KEY, deviceId, "ANDROID_PHONE", "daemon", sensors, true))
+        val hello = Hello(HelloMessage(3, apiKeyStore.get(), deviceId, "ANDROID_PHONE", "daemon", sensors, true))
         webSocket?.send(gson.toJson(hello))
     }
 

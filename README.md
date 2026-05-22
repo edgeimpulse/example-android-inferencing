@@ -167,6 +167,18 @@ override fun onResume() {
 }
 ```
 
+# Edge Impulse Data Collector Example
+
+An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edgeimpulse.com) platform. Collect phone sensor data, photos, and BLE-relayed sensor data from a Zephyr device, and upload directly to your Edge Impulse project.
+
+> **Sample APK** — grab [`sample-apk/edge-impulse-data-collector.apk`](sample-apk/edge-impulse-data-collector.apk) to sideload without building.
+
+
+## Screenshots
+
+| Collect | Zephyr BLE | WearOS |
+|:---:|:---:|:---:|
+| ![Collect tab](screenshots/04_project_connected.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
 
 
 ## Running on 32bit

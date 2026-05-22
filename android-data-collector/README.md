@@ -10,7 +10,7 @@ An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edge
 
 | Collect | Zephyr BLE | WearOS |
 |:---:|:---:|:---:|
-| ![Collect tab](screenshots/01_collect_tab.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
+| ![Collect tab](screenshots/04_project_connected.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
 
 ---
 

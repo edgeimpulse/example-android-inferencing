@@ -174,13 +174,6 @@ An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edge
 > **Sample APK** — grab [`sample-apk/edge-impulse-data-collector.apk`](sample-apk/edge-impulse-data-collector.apk) to sideload without building.
 
 
-## Screenshots
-
-| Collect | Zephyr BLE | WearOS |
-|:---:|:---:|:---:|
-| ![Collect tab](screenshots/04_project_connected.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
-
-
 ## Running on 32bit
 
 

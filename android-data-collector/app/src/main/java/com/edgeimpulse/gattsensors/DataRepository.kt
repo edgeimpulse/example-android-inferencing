@@ -1,6 +1,7 @@
 package com.edgeimpulse.gattsensors
 
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import com.google.android.gms.wearable.MessageEvent
 import com.google.gson.Gson
@@ -26,6 +27,10 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
 
     private val client = OkHttpClient()
     private val gson = Gson()
+    private val deviceId: String by lazy {
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?: "android-ei-device"
+    }
 
     // For offline logging
     private var isLoggingOffline = false
@@ -96,10 +101,20 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
         isSamplingForRemote = false
     }
 
-    fun uploadCollectedRemoteSample(label: String, hmacKey: String, path: String, sensorName: String) {
-        val sensorInfo = SensorInfo(sensorName, listOf(), 0)
+    fun uploadCollectedRemoteSample(
+        label: String,
+        hmacKey: String,
+        path: String,
+        sensorName: String,
+        intervalMs: Int,
+        lengthMs: Int
+    ) {
+        // Derive frequency and window length from the sample-request parameters.
+        val frequencyHz = if (intervalMs > 0) 1000.0 / intervalMs else 62.5
+        val maxSampleLengthS = (lengthMs / 1000).coerceAtLeast(1)
+        val sensorInfo = SensorInfo(sensorName, listOf(frequencyHz), maxSampleLengthS)
         val values = remoteSampleData.map { it.values.values.toList() }
-        val payload = IngestionPayload("android-device", "ANDROID_PHONE", 10, listOf(sensorInfo), values)
+        val payload = IngestionPayload(deviceId, "ANDROID_PHONE", intervalMs.coerceAtLeast(1), listOf(sensorInfo), values)
         val requestBody = IngestionRequest(Protected("v1", "none", "00"), payload)
 
         val request = Request.Builder()
@@ -218,13 +233,19 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
      * [label] is the EI data label (e.g. "normal", "anomaly").
      */
     fun uploadImage(imageBytes: ByteArray, label: String) {
-        val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
+        val multipart = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "data",
+                "image_${System.currentTimeMillis()}.jpg",
+                imageBytes.toRequestBody("image/jpeg".toMediaType())
+            )
+            .build()
         val request = Request.Builder()
-            .url("https://ingestion.edgeimpulse.com/api/training/data")
+            .url("https://ingestion.edgeimpulse.com/api/training/files")
             .header("x-api-key", apiKeyStore.get())
             .header("x-label", label)
-            .header("Content-Type", "image/jpeg")
-            .post(requestBody)
+            .post(multipart)
             .build()
 
         CoroutineScope(Dispatchers.IO).launch {

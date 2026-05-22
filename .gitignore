@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Local Android project directories that live alongside the tracked projects
+# but are not part of this repository.
+EdgeImpulseMobileClientAndroidWrapper/
+EdgeImpulseSwimCollector/
+GATTSensors2/
+ei-zephyr-ble-gatt-client/
+
+# Android build outputs (for any sub-project)
+**/build/
+
+# IDE
+**/.idea/
+*.iml

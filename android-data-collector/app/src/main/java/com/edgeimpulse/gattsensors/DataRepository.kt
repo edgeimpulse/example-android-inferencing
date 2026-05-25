@@ -92,11 +92,32 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     }
 
     fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path == "/sensor_data") {
-            val data = String(messageEvent.data)
-            val values = data.split(",").map { it.toFloat() }
-            val sensorData = SensorData(System.currentTimeMillis(), mapOf("accelX" to values[0], "accelY" to values[1], "accelZ" to values[2]))
-            saveSensorData(sensorData)
+        when (messageEvent.path) {
+            WearProtocol.PATH_LEGACY_ACCEL -> {
+                // Legacy "x,y,z" CSV — kept for old wear builds.
+                val data = String(messageEvent.data)
+                val values = data.split(",").mapNotNull { it.trim().toFloatOrNull() }
+                if (values.size >= 3) {
+                    saveSensorData(SensorData(
+                        System.currentTimeMillis(),
+                        mapOf("accelX" to values[0], "accelY" to values[1], "accelZ" to values[2])
+                    ))
+                    appendWearSamples("accel", System.currentTimeMillis(),
+                        floatArrayOf(values[0], values[1], values[2]))
+                }
+            }
+            WearProtocol.PATH_SAMPLES -> {
+                // `<key>|<ts>|v0,v1,v2` per line — multiple lines per message.
+                String(messageEvent.data).lineSequence().forEach { line ->
+                    if (line.isBlank()) return@forEach
+                    val parts = line.split('|', limit = 3)
+                    if (parts.size != 3) return@forEach
+                    val key = parts[0]
+                    val ts  = parts[1].toLongOrNull() ?: System.currentTimeMillis()
+                    val vs  = parts[2].split(',').mapNotNull { it.trim().toFloatOrNull() }
+                    if (vs.isNotEmpty()) appendWearSamples(key, ts, vs.toFloatArray())
+                }
+            }
         }
     }
 
@@ -335,6 +356,121 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
             } catch (e: IOException) {
                 Log.e("DataRepository", "Image upload exception", e)
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Unified multi-modal capture (phone sensors + Wear OS samples)
+    // -------------------------------------------------------------------------
+
+    /** Per-sensor sample buffer keyed by canonical sensor key (e.g. "accel"). */
+    private data class SensorBuffer(
+        val key: String,
+        val values: MutableList<FloatArray> = mutableListOf(),
+    )
+
+    private val phoneBuffers = mutableMapOf<String, SensorBuffer>()
+    private val wearBuffers  = mutableMapOf<String, SensorBuffer>()
+    @Volatile private var isMultiRecording = false
+
+    /** Start a unified capture window. Clears all per-sensor buffers. */
+    fun startMultiRecording() {
+        synchronized(phoneBuffers) { phoneBuffers.clear() }
+        synchronized(wearBuffers)  { wearBuffers.clear()  }
+        isMultiRecording = true
+    }
+
+    /** Append one phone-sensor sample to the unified buffer. */
+    fun appendPhoneSample(sensorKey: String, values: FloatArray) {
+        if (!isMultiRecording) return
+        synchronized(phoneBuffers) {
+            phoneBuffers.getOrPut(sensorKey) { SensorBuffer(sensorKey) }
+                .values.add(values)
+        }
+    }
+
+    /** Append one Wear OS sample (called from message route). */
+    fun appendWearSamples(sensorKey: String, @Suppress("UNUSED_PARAMETER") timestampMs: Long,
+                          values: FloatArray) {
+        if (!isMultiRecording) return
+        synchronized(wearBuffers) {
+            wearBuffers.getOrPut(sensorKey) { SensorBuffer(sensorKey) }
+                .values.add(values)
+        }
+    }
+
+    /**
+     * Close the unified window and upload each buffered sensor stream as
+     * its own Edge Impulse ingestion sample. All samples share [label] so
+     * they line up in the dataset and can be combined downstream.
+     */
+    fun stopMultiRecordingAndUpload(label: String, durationMs: Long) {
+        isMultiRecording = false
+        val phoneSnap: Map<String, List<FloatArray>>
+        val wearSnap:  Map<String, List<FloatArray>>
+        synchronized(phoneBuffers) {
+            phoneSnap = phoneBuffers.mapValues { it.value.values.toList() }
+            phoneBuffers.clear()
+        }
+        synchronized(wearBuffers) {
+            wearSnap = wearBuffers.mapValues { it.value.values.toList() }
+            wearBuffers.clear()
+        }
+        if (phoneSnap.isEmpty() && wearSnap.isEmpty()) {
+            Log.w("DataRepository", "Multi-recording '$label' empty — skipping upload")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            phoneSnap.forEach { (key, rows) ->
+                if (rows.isNotEmpty()) {
+                    uploadStream("phone-$key", "ANDROID_PHONE_$key".uppercase(),
+                                 rows, label, durationMs)
+                }
+            }
+            wearSnap.forEach { (key, rows) ->
+                if (rows.isNotEmpty()) {
+                    uploadStream("wear-$key", "WEAROS_$key".uppercase(),
+                                 rows, label, durationMs)
+                }
+            }
+        }
+    }
+
+    private fun uploadStream(
+        sensorName: String,
+        deviceType: String,
+        rows: List<FloatArray>,
+        label: String,
+        durationMs: Long,
+    ) {
+        // Derive a per-sample interval from the actual sample count over the
+        // capture window. Edge Impulse uses this to plot the time axis.
+        val intervalMs = if (rows.size > 1) (durationMs.toDouble() / rows.size) else 10.0
+        val freqHz     = if (intervalMs > 0) 1000.0 / intervalMs else 100.0
+        val maxLenS    = ((durationMs / 1000).coerceAtLeast(1)).toInt()
+
+        val sensors = listOf(SensorInfo(sensorName, listOf(freqHz), maxLenS))
+        val values  = rows.map { it.toList() }
+        val payload = IngestionPayload(deviceId, deviceType, intervalMs, sensors, values)
+        val body    = IngestionRequest(Protected("v1", "none", "00"), payload)
+
+        val request = Request.Builder()
+            .url("https://ingestion.edgeimpulse.com/api/training/data")
+            .header("x-api-key", apiKeyStore.get())
+            .header("x-label", label)
+            .post(gson.toJson(body).toRequestBody("application/json".toMediaType()))
+            .build()
+        try {
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Log.e("DataRepository",
+                    "Multi upload '$sensorName' failed: ${response.body?.string()}")
+            } else {
+                Log.d("DataRepository",
+                    "Multi upload '$sensorName' (${rows.size} samples) ok")
+            }
+        } catch (e: IOException) {
+            Log.e("DataRepository", "Multi upload '$sensorName' exception", e)
         }
     }
 }

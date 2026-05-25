@@ -178,7 +178,7 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 when (selectedTab) {
                     0 -> CollectScreen(viewModel, cameraHelper)
                     1 -> ZephyrBLEScreen(viewModel)
-                    2 -> WearOSScreen()
+                    2 -> WearOSScreen(viewModel, cameraHelper)
                 }
             }
         }
@@ -840,25 +840,157 @@ fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
 }
 
 // =============================================================================
-// SECONDARY: WearOS screen
+// SECONDARY: WearOS / multi-modal capture screen
 // =============================================================================
 
 @Composable
-fun WearOSScreen() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Watch, contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary)
-            Text("WearOS sensor relay", style = MaterialTheme.typography.titleMedium,
+fun WearOSScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
+    val wearNode        by viewModel.wearNode.collectAsState()
+    val wearCount       by viewModel.wearSampleCount.collectAsState()
+    val zephyrConnected by viewModel.zephyrConnected.collectAsState()
+    val isRecording     by viewModel.multiRecording.collectAsState()
+
+    var label    by remember { mutableStateOf("idle") }
+    var seconds  by remember { mutableFloatStateOf(5f) }
+    var usePhone by remember { mutableStateOf(true) }
+    var useWear  by remember { mutableStateOf(true) }
+    var useZephyr by remember { mutableStateOf(true) }
+    var useCamera by remember { mutableStateOf(false) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
+    ) {
+        item {
+            Text("Multi-modal capture", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Text(
-                "Pair a Wear OS watch to relay heart rate,\n" +
-                "accelerometer, and GPS to Edge Impulse.",
+                "Combine Wear OS sensors, the phone's own SensorManager, the " +
+                "Nesso N1 IMU and a camera snapshot into a single labelled " +
+                "session. Each stream is uploaded as its own Edge Impulse " +
+                "ingestion sample sharing the label so they line up downstream.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
+
+        // Source status banners
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Sources", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary)
+                    SourceRow(
+                        icon = Icons.Default.Watch,
+                        title = if (wearNode != null) "Wear OS: $wearNode" else "Wear OS: no node",
+                        subtitle = "Samples received: $wearCount",
+                        ok = wearNode != null,
+                    )
+                    SourceRow(
+                        icon = Icons.Default.Bluetooth,
+                        title = if (zephyrConnected) "Nesso N1: connected" else "Nesso N1: not connected",
+                        subtitle = "Open the Zephyr BLE tab to scan",
+                        ok = zephyrConnected,
+                    )
+                    TextButton(onClick = { viewModel.refreshWearNode() }) {
+                        Text("Refresh Wear OS connection")
+                    }
+                }
+            }
+        }
+
+        // Label + duration
+        item {
+            OutlinedTextField(
+                value = label, onValueChange = { label = it },
+                label = { Text("Capture label") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        item {
+            Column {
+                Text("Duration: ${seconds.toInt()} s",
+                    style = MaterialTheme.typography.labelLarge)
+                Slider(
+                    value = seconds, onValueChange = { seconds = it },
+                    valueRange = 1f..30f, steps = 28,
+                )
+            }
+        }
+
+        // Per-stream toggles
+        item {
+            Text("Streams", style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary)
+        }
+        item { ToggleRow("Phone SensorManager (accel, gyro, mag, light, pressure, …)",
+                usePhone) { usePhone = it } }
+        item { ToggleRow("Wear OS watch (accel, gyro, heart rate)",
+                useWear, enabled = wearNode != null) { useWear = it } }
+        item { ToggleRow("Nesso N1 IMU (BLE)",
+                useZephyr, enabled = zephyrConnected) { useZephyr = it } }
+        item { ToggleRow("Camera snapshot at session start",
+                useCamera) { useCamera = it } }
+
+        item {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isRecording && (usePhone || useWear || useZephyr || useCamera)
+                          && label.isNotBlank(),
+                onClick = {
+                    viewModel.startUnifiedRecording(
+                        durationMs = (seconds.toLong() * 1000L).coerceAtLeast(1000L),
+                        label = label.trim(),
+                        includePhoneSensors = usePhone,
+                        includeWear = useWear,
+                        includeZephyr = useZephyr,
+                        cameraHelper = cameraHelper.takeIf { useCamera },
+                    )
+                }
+            ) {
+                Icon(Icons.Default.FiberManualRecord, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(if (isRecording)
+                    "Recording \"$label\" \u2026"
+                else
+                    "Record \"$label\" for ${seconds.toInt()}s")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String, subtitle: String, ok: Boolean,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, contentDescription = null,
+            tint = if (ok) MaterialTheme.colorScheme.primary
+                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    label: String, checked: Boolean, enabled: Boolean = true,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically) {
+        Switch(checked = checked && enabled, enabled = enabled,
+               onCheckedChange = onChange)
+        Spacer(Modifier.width(8.dp))
+        Text(label,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
     }
 }

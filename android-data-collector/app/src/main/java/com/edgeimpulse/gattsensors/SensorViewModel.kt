@@ -16,8 +16,19 @@ class SensorViewModel(
     private val edgeImpulseManager: EdgeImpulseManager,
     private val dataRepository: DataRepository,
     val zephyrBLEClient: ZephyrBLEClient,
+    val wearOSClient: WearOSClient,
     val apiKeyStore: ApiKeyStore
 ) : AndroidViewModel(application) {
+
+    /** Display name of the connected Wear OS node, null if none. */
+    val wearNode        = wearOSClient.connectedNode
+    val wearSampleCount = wearOSClient.samplesReceived
+
+    /** True while a unified multi-modal recording window is active. */
+    private val _multiRecording = MutableStateFlow(false)
+    val multiRecording = _multiRecording.asStateFlow()
+
+    private var multiJob: Job? = null
 
     private val _sensorData = MutableStateFlow<SensorData?>(null)
     val sensorData = _sensorData.asStateFlow()
@@ -51,6 +62,14 @@ class SensorViewModel(
                 _sensorData.value = it
             }
         }
+        // Route Wear OS sample/event messages into the repository so the
+        // unified recorder picks them up.
+        viewModelScope.launch {
+            WearEventBus.events.collect { ev ->
+                dataRepository.onMessageReceived(ev)
+            }
+        }
+        wearOSClient.refreshNodes()
         edgeImpulseManager.connect()
     }
 
@@ -140,6 +159,67 @@ class SensorViewModel(
             _zephyrRecording.value = false
         }
     }
+
+    /**
+     * Multi-modal capture window: fire every selected data source at the
+     * same instant under a single [label], then upload each stream as its
+     * own EI sample so they can be correlated downstream.
+     *
+     * @param durationMs window length
+     * @param label EI training label (also pushed to Nesso STATE and Wear)
+     * @param includePhoneSensors register every available SensorManager sensor
+     * @param includeWear send start/stop command to the paired watch
+     * @param includeZephyr open a Nesso BLE recording window in parallel
+     * @param cameraHelper non-null = take one JPEG snapshot at session start
+     */
+    fun startUnifiedRecording(
+        durationMs: Long,
+        label: String,
+        includePhoneSensors: Boolean = true,
+        includeWear: Boolean = true,
+        includeZephyr: Boolean = true,
+        cameraHelper: CameraHelper? = null,
+    ) {
+        if (_multiRecording.value) return
+        _multiRecording.value = true
+
+        dataRepository.startMultiRecording()
+
+        if (includePhoneSensors) {
+            gattServerManager.startServer()
+            sensorCollector.startAll()
+            _isCollecting.value = true
+        }
+        if (includeWear) {
+            wearOSClient.resetCount()
+            wearOSClient.startRecording(label, durationMs)
+        }
+        if (includeZephyr && zephyrConnected.value) {
+            zephyrBLEClient.setLabel(label)
+            zephyrBLEClient.resetSampleCount()
+            dataRepository.startZephyrRecording()
+        }
+        cameraHelper?.captureJpeg { jpeg ->
+            viewModelScope.launch { dataRepository.uploadImage(jpeg, label) }
+        }
+
+        multiJob = viewModelScope.launch {
+            delay(durationMs)
+            if (includePhoneSensors) {
+                sensorCollector.stop()
+                gattServerManager.stopServer()
+                _isCollecting.value = false
+            }
+            if (includeWear) wearOSClient.stopRecording()
+            if (includeZephyr && zephyrConnected.value) {
+                dataRepository.stopZephyrRecordingAndUpload(label)
+            }
+            dataRepository.stopMultiRecordingAndUpload(label, durationMs)
+            _multiRecording.value = false
+        }
+    }
+
+    fun refreshWearNode() = wearOSClient.refreshNodes()
 
     override fun onCleared() {
         super.onCleared()

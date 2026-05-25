@@ -84,9 +84,11 @@ class VoiceCommandManager(
         main.post {
             onStatus("Wake word detected; listening for command...")
             onWake()
-            // SpeechRecognizer needs the mic, so pause KWS.
+            // SpeechRecognizer needs the mic, so pause KWS. Add a short delay
+            // to let the OS fully release AudioRecord before SpeechRecognizer
+            // tries to grab it (avoids ERROR_CLIENT / INSUFFICIENT_PERMISSIONS).
             kws?.stop()
-            stt.listenOnce(maxMs = 5_000L)
+            main.postDelayed({ stt.listenOnce(maxMs = 6_000L) }, 250L)
         }
     }
 

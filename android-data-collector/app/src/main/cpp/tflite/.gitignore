@@ -1,0 +1,2 @@
+# Prebuilt TFLite static libs are large (~190 MB); download via download_tflite_libs.sh
+android64/*.a

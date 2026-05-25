@@ -88,8 +88,19 @@ class AudioCapture(
 
     fun stop() {
         running.set(false)
-        job?.cancel()
+        // Block until the IO coroutine reaches its `finally` and releases the
+        // AudioRecord. Without this, callers (e.g. SpeechRecognizer) can race
+        // us for the mic and fail with error 9 (INSUFFICIENT_PERMISSIONS) or
+        // error 3 (AUDIO).
+        val j = job
         job = null
+        if (j != null) {
+            kotlinx.coroutines.runBlocking {
+                runCatching {
+                    kotlinx.coroutines.withTimeoutOrNull(500L) { j.join() }
+                }
+            }
+        }
     }
 
     val isRunning: Boolean get() = running.get()

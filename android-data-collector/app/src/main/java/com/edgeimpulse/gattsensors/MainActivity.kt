@@ -142,6 +142,18 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             else voiceStatus = "RECORD_AUDIO permission denied"
         }
 
+        // Always-on by default: kick off wake-word listening as soon as the UI
+        // mounts. Request RECORD_AUDIO if we don't already have it; otherwise
+        // enable straight away. Continuous loop — KwsEngine re-arms itself
+        // after every wake / capture cycle.
+        LaunchedEffect(Unit) {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (granted) voiceManager.enable()
+            else micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+
         DisposableEffect(Unit) {
             onDispose { voiceManager.disable() }
         }

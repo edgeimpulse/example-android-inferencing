@@ -102,6 +102,11 @@ class SensorViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        // Make sure all sensor / radio resources are released so we don't drain
+        // battery (or leak the ViewModel via stale listeners) after the host
+        // Activity is destroyed.
+        sensorCollector.stop()
+        gattServerManager.stopServer()
         edgeImpulseManager.disconnect()
         dataRepository.stopOfflineLogging()
     }

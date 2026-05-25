@@ -565,9 +565,15 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
 
 @Composable
 fun ZephyrBLEScreen(viewModel: SensorViewModel) {
-    val isConnected by viewModel.zephyrConnected.collectAsState()
-    val inference   by viewModel.zephyrInference.collectAsState()
-    val devices     by viewModel.zephyrDevices.collectAsState()
+    val isConnected   by viewModel.zephyrConnected.collectAsState()
+    val inference     by viewModel.zephyrInference.collectAsState()
+    val devices       by viewModel.zephyrDevices.collectAsState()
+    val currentLabel  by viewModel.zephyrLabel.collectAsState()
+    val sampleCount   by viewModel.zephyrSampleCount.collectAsState()
+    val isRecording   by viewModel.zephyrRecording.collectAsState()
+
+    val labels = listOf("idle", "circle", "updown")
+    val recordingDurationMs = 5000L
 
     LazyColumn(
         modifier = Modifier
@@ -629,6 +635,58 @@ fun ZephyrBLEScreen(viewModel: SensorViewModel) {
                     enabled  = isConnected,
                     onClick  = { viewModel.zephyrBLEClient.disconnect() }
                 ) { Text("Disconnect") }
+            }
+        }
+
+        // ---- Capture label picker + status ----
+        item {
+            Text("Capture label", style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary)
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                labels.forEach { label ->
+                    FilterChip(
+                        selected = currentLabel == label,
+                        onClick  = { viewModel.setZephyrLabel(label) },
+                        enabled  = isConnected && !isRecording,
+                        label    = { Text(label) }
+                    )
+                }
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("Status", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text("Active label: $currentLabel")
+                    Text("Samples received this window: $sampleCount")
+                    Text(
+                        if (isRecording) "Recording \u2014 hold still / perform gesture\u2026"
+                        else "Idle",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isRecording) MaterialTheme.colorScheme.secondary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+        item {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled  = isConnected && !isRecording,
+                onClick  = { viewModel.startZephyrRecording(recordingDurationMs) }
+            ) {
+                Icon(Icons.Default.FiberManualRecord, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (isRecording) "Recording\u2026"
+                    else "Record \"$currentLabel\" from Nesso N1 (${recordingDurationMs / 1000}s)"
+                )
             }
         }
 

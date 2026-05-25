@@ -33,9 +33,17 @@ class SensorViewModel(
     val recognizedText = speechRecognitionHelper.recognizedText
 
     // Expose Zephyr state for the UI
-    val zephyrConnected = zephyrBLEClient.isConnected
-    val zephyrInference = zephyrBLEClient.latestInference
-    val zephyrDevices   = zephyrBLEClient.scannedDevices
+    val zephyrConnected   = zephyrBLEClient.isConnected
+    val zephyrInference   = zephyrBLEClient.latestInference
+    val zephyrDevices     = zephyrBLEClient.scannedDevices
+    val zephyrLabel       = zephyrBLEClient.currentLabel
+    val zephyrSampleCount = zephyrBLEClient.sampleCount
+
+    /** True while a Nesso recording window (and matching phone capture) is active. */
+    private val _zephyrRecording = MutableStateFlow(false)
+    val zephyrRecording = _zephyrRecording.asStateFlow()
+
+    private var zephyrRecordingJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -97,6 +105,39 @@ class SensorViewModel(
             viewModelScope.launch {
                 dataRepository.uploadImage(jpegBytes, label)
             }
+        }
+    }
+
+    /** Push a new label to the Nesso firmware via the STATE characteristic. */
+    fun setZephyrLabel(label: String) {
+        zephyrBLEClient.setLabel(label)
+    }
+
+    /**
+     * Record from the Nesso N1 IMU for [durationMs], in lock-step with the
+     * phone's local sensor collection. Both streams use the same window so
+     * samples line up in time. On completion the Nesso buffer is uploaded
+     * to Edge Impulse tagged with the currently-selected label.
+     */
+    fun startZephyrRecording(durationMs: Long, sensorType: String = "Accelerometer") {
+        if (_zephyrRecording.value) return
+        val label = zephyrLabel.value
+        _zephyrRecording.value = true
+
+        // Make sure the firmware also knows the active label (so on-device logs
+        // and any local model gate on the same value).
+        zephyrBLEClient.setLabel(label)
+        zephyrBLEClient.resetSampleCount()
+        dataRepository.startZephyrRecording()
+
+        // Mirror the phone-side collection so both streams capture the same
+        // window. Reuses the existing duration mechanism.
+        startSensorForDuration(sensorType, durationMs)
+
+        zephyrRecordingJob = viewModelScope.launch {
+            delay(durationMs)
+            dataRepository.stopZephyrRecordingAndUpload(label)
+            _zephyrRecording.value = false
         }
     }
 

@@ -182,6 +182,71 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     /** Buffer that holds the most recent Zephyr sensor window for correlation. */
     private val pendingZephyrSensorData = mutableListOf<FloatArray>()
 
+    /** True while a user-initiated Nesso recording window is open. */
+    @Volatile private var isZephyrRecording = false
+
+    /**
+     * Begin a Nesso N1 capture window. Clears any buffered samples so the
+     * upload contains only data from this window.
+     */
+    fun startZephyrRecording() {
+        synchronized(pendingZephyrSensorData) {
+            pendingZephyrSensorData.clear()
+        }
+        isZephyrRecording = true
+    }
+
+    /**
+     * Close the current Nesso N1 capture window and upload the buffered
+     * samples to Edge Impulse tagged with [label]. [intervalMs] should match
+     * the firmware sampling interval (default 10 ms / 100 Hz).
+     */
+    fun stopZephyrRecordingAndUpload(label: String, intervalMs: Int = 10) {
+        isZephyrRecording = false
+        val windows: List<FloatArray>
+        synchronized(pendingZephyrSensorData) {
+            if (pendingZephyrSensorData.isEmpty()) {
+                Log.w("DataRepository", "Nesso recording for '$label' is empty — skipping upload")
+                return
+            }
+            windows = pendingZephyrSensorData.toList()
+            pendingZephyrSensorData.clear()
+        }
+        val rows: List<List<Float>> = windows.map { it.toList() }
+
+        val sensors = listOf(SensorInfo("Nesso N1 IMU", listOf(1000.0 / intervalMs), 600))
+        val payload = IngestionPayload(
+            device_name  = "nesso-n1",
+            device_type  = "NESSO_N1_IMU",
+            interval_ms  = intervalMs,
+            sensors      = sensors,
+            values       = rows
+        )
+        val requestBody = IngestionRequest(Protected("v1", "none", "00"), payload)
+
+        val request = Request.Builder()
+            .url("https://ingestion.edgeimpulse.com/api/training/data")
+            .header("x-api-key", apiKeyStore.get())
+            .header("x-label", label)
+            .post(gson.toJson(requestBody).toRequestBody("application/json".toMediaType()))
+            .build()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    Log.e("DataRepository",
+                        "Nesso recording upload failed: ${response.body?.string()}")
+                } else {
+                    Log.d("DataRepository",
+                        "Nesso recording '$label' (${rows.size} samples) uploaded")
+                }
+            } catch (e: IOException) {
+                Log.e("DataRepository", "Nesso recording upload exception", e)
+            }
+        }
+    }
+
     fun saveZephyrInferenceResult(result: ZephyrInferenceResult) {
         // Build a sensor payload from the buffered raw sensor windows. If no sensor
         // data has been received yet, skip the upload entirely — uploading the
@@ -223,7 +288,9 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     }
 
     fun saveZephyrSensorData(samples: FloatArray) {
-        pendingZephyrSensorData.add(samples)
+        synchronized(pendingZephyrSensorData) {
+            pendingZephyrSensorData.add(samples)
+        }
         if (isLoggingOffline) {
             try {
                 csvFileWriter?.append(samples.joinToString(",") + "\n")

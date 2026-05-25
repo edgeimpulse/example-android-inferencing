@@ -19,12 +19,14 @@ import java.nio.ByteOrder
 /**
  * Decoded inference result received from the Zephyr "EI-Monitor" device.
  *
- * Binary layout on ARM (matches inference_result_t in gatt_client.h):
+ * Binary layout (matches inference_result_t in gatt_client.h, declared
+ * with __attribute__((packed)) on the firmware side so timestamp sits at
+ * offset 44 with no padding on either ARM or RISC-V):
  *   offset  0 : char label[32]
  *   offset 32 : float confidence
  *   offset 36 : uint32_t dsp_time_ms
  *   offset 40 : uint32_t classification_time_ms
- *   offset 44 : uint64_t timestamp    (4-byte aligned on ARM Cortex-M)
+ *   offset 44 : uint64_t timestamp
  *   Total: 52 bytes
  */
 data class ZephyrInferenceResult(
@@ -64,12 +66,23 @@ class ZephyrBLEClient(
     private val _scannedDevices = MutableStateFlow<List<BLEDevice>>(emptyList())
     val scannedDevices = _scannedDevices.asStateFlow()
 
+    /** Current capture label on the Nesso ("idle", "circle", "updown"). */
+    private val _currentLabel = MutableStateFlow("idle")
+    val currentLabel = _currentLabel.asStateFlow()
+
+    /** Total raw IMU samples received from the Nesso during the most recent
+     *  recording window. Reset by [DataRepository.startZephyrRecording]. */
+    private val _sampleCount = MutableStateFlow(0)
+    val sampleCount = _sampleCount.asStateFlow()
+
     private var bluetoothGatt: BluetoothGatt? = null
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val scannedDevicesLock = Any()
 
     // Pending: subscribe to sensor char after inference CCC write completes
     private var pendingSensorCharSubscription = false
+    // Pending: subscribe to state char after sensor CCC write completes
+    private var pendingStateCharSubscription = false
 
     /* ---------------------------------------------------------------------- */
     /* Scanning                                                                 */
@@ -77,7 +90,12 @@ class ZephyrBLEClient(
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            val name = result.scanRecord?.deviceName ?: result.device.name ?: return
+            // Device name may live in the scan record OR be cached on the
+            // BluetoothDevice; fall back to "(unnamed)" so the entry still
+            // shows up in the UI even when the peripheral omits a name.
+            val name = result.scanRecord?.deviceName
+                ?: result.device.name
+                ?: "(unnamed)"
             val bleDevice = BLEDevice(result.device, name, result.device.address, result.rssi)
 
             // Accumulate for the UI list. BLE scan callbacks can arrive on different
@@ -87,12 +105,19 @@ class ZephyrBLEClient(
                 if (current.none { it.address == bleDevice.address }) {
                     current.add(bleDevice)
                     _scannedDevices.value = current
+                    Log.d(TAG, "Discovered ${bleDevice.address} \"$name\" rssi=${result.rssi}")
                 }
             }
 
-            // Auto-connect to EI-Monitor
-            if (name == TARGET_DEVICE_NAME && !_isConnected.value && bluetoothGatt == null) {
-                Log.i(TAG, "Found $TARGET_DEVICE_NAME — connecting…")
+            // Auto-connect when we see the EI service UUID (more reliable than
+            // matching on the advertised name, which may not always be present).
+            val advertisesEiService = result.scanRecord
+                ?.serviceUuids
+                ?.any { it.uuid == GattProfile.EI_SERVICE_UUID } == true
+
+            if ((advertisesEiService || name == TARGET_DEVICE_NAME) &&
+                !_isConnected.value && bluetoothGatt == null) {
+                Log.i(TAG, "Found EI peripheral ($name) — connecting…")
                 stopScan()
                 connectToDevice(result.device)
             }
@@ -106,15 +131,24 @@ class ZephyrBLEClient(
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun startScan() {
         _scannedDevices.value = emptyList()
-        val scanner = bluetoothAdapter?.bluetoothLeScanner ?: return
+        val scanner = bluetoothAdapter?.bluetoothLeScanner
+        if (scanner == null) {
+            Log.e(TAG, "BLE scanner unavailable — is Bluetooth turned on?")
+            return
+        }
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
-        val filter = ScanFilter.Builder()
-            .setDeviceName(TARGET_DEVICE_NAME)
-            .build()
-        scanner.startScan(listOf(filter), settings, scanCallback)
-        Log.i(TAG, "Scanning for $TARGET_DEVICE_NAME…")
+        // Filter on the EI service UUID (always advertised by the firmware)
+        // rather than the device name (which can be missing from the AD packet
+        // when scan-response data isn't included).
+        val filters = listOf(
+            ScanFilter.Builder()
+                .setServiceUuid(android.os.ParcelUuid(GattProfile.EI_SERVICE_UUID))
+                .build()
+        )
+        scanner.startScan(filters, settings, scanCallback)
+        Log.i(TAG, "Scanning for EI service ${GattProfile.EI_SERVICE_UUID}…")
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
@@ -155,9 +189,11 @@ class ZephyrBLEClient(
         ) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    Log.i(TAG, "Connected — discovering services…")
+                    Log.i(TAG, "Connected — requesting MTU…")
                     _isConnected.value = true
-                    gatt.discoverServices()
+                    // Larger MTU is required for 6-axis IMU notifications (24 bytes
+                    // plus headers exceeds the default 23-byte MTU on some links).
+                    gatt.requestMtu(247)
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.i(TAG, "Disconnected")
@@ -166,6 +202,12 @@ class ZephyrBLEClient(
                     bluetoothGatt = null
                 }
             }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            Log.i(TAG, "MTU = $mtu (status=$status) — discovering services…")
+            gatt.discoverServices()
         }
 
         @SuppressLint("MissingPermission")
@@ -186,7 +228,8 @@ class ZephyrBLEClient(
             val inferenceChar = service.getCharacteristic(GattProfile.INFERENCE_CHAR_UUID)
             if (inferenceChar != null) {
                 enableNotification(gatt, inferenceChar)
-                pendingSensorCharSubscription = true  // subscribe sensor after CCC write
+                pendingSensorCharSubscription = true  // sensor CCC after inference CCC write
+                // state CCC + read happens after sensor CCC write
             } else {
                 Log.w(TAG, "Inference characteristic not found")
             }
@@ -200,9 +243,10 @@ class ZephyrBLEClient(
         ) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.e(TAG, "CCCD write failed (status=$status) for ${descriptor.characteristic.uuid}")
-                // Reset pending flag so we don't get stuck waiting for a callback that
+                // Reset pending flags so we don't get stuck waiting for a callback that
                 // will never arrive with success.
                 pendingSensorCharSubscription = false
+                pendingStateCharSubscription = false
                 return
             }
             if (pendingSensorCharSubscription) {
@@ -212,7 +256,42 @@ class ZephyrBLEClient(
                 if (sensorChar != null) {
                     Log.i(TAG, "Enabling sensor data notifications")
                     enableNotification(gatt, sensorChar)
+                    pendingStateCharSubscription = true
                 }
+                return
+            }
+            if (pendingStateCharSubscription) {
+                pendingStateCharSubscription = false
+                val service = gatt.getService(GattProfile.EI_SERVICE_UUID) ?: return
+                val stateChar = service.getCharacteristic(GattProfile.STATE_CHAR_UUID)
+                if (stateChar != null) {
+                    Log.i(TAG, "Enabling state notifications and reading current label")
+                    enableNotification(gatt, stateChar)
+                    gatt.readCharacteristic(stateChar)
+                }
+            }
+        }
+
+        @Deprecated("Replaced by onCharacteristicRead with value param (API 33+)")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                @Suppress("DEPRECATION")
+                handleCharacteristicData(characteristic.uuid, characteristic.value)
+            }
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                handleCharacteristicData(characteristic.uuid, value)
             }
         }
 
@@ -261,8 +340,51 @@ class ZephyrBLEClient(
         when (uuid) {
             GattProfile.INFERENCE_CHAR_UUID -> parseInferenceResult(data)
             GattProfile.SENSOR_CHAR_UUID    -> parseSensorData(data)
+            GattProfile.STATE_CHAR_UUID     -> parseLabel(data)
         }
     }
+
+    private fun parseLabel(data: ByteArray) {
+        val label = String(data, Charsets.UTF_8).trimEnd('\u0000').trim()
+        if (label.isNotEmpty() && label != _currentLabel.value) {
+            Log.i(TAG, "Label → \"$label\"")
+            _currentLabel.value = label
+        }
+    }
+
+    /**
+     * Write a new capture label to the Nesso. Triggers a STATE notification
+     * which updates [currentLabel] flow when the firmware echoes it back.
+     */
+    @SuppressLint("MissingPermission")
+    fun setLabel(label: String) {
+        val gatt = bluetoothGatt ?: run {
+            Log.w(TAG, "setLabel('$label') ignored — no GATT connection")
+            return
+        }
+        val service = gatt.getService(GattProfile.EI_SERVICE_UUID) ?: return
+        val stateChar = service.getCharacteristic(GattProfile.STATE_CHAR_UUID) ?: return
+        val bytes = label.toByteArray(Charsets.UTF_8)
+        // Optimistic local update so the UI reacts instantly; the firmware
+        // echo will overwrite it (no-op if same string).
+        _currentLabel.value = label
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt.writeCharacteristic(
+                stateChar, bytes,
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            stateChar.value = bytes
+            @Suppress("DEPRECATION")
+            stateChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            @Suppress("DEPRECATION")
+            gatt.writeCharacteristic(stateChar)
+        }
+    }
+
+    /** Reset the running sample counter (e.g. at the start of a recording). */
+    fun resetSampleCount() { _sampleCount.value = 0 }
 
     private fun parseInferenceResult(data: ByteArray) {
         if (data.size < INFERENCE_RESULT_SIZE) {
@@ -291,6 +413,7 @@ class ZephyrBLEClient(
         if (data.size < 4 || data.size % 4 != 0) return
         val buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
         val floats = FloatArray(data.size / 4) { buf.float }
+        _sampleCount.value = _sampleCount.value + 1
         coroutineScope.launch {
             dataRepository.saveZephyrSensorData(floats)
         }

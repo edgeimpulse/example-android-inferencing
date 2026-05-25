@@ -20,6 +20,8 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
             val dataRepository      = DataRepository(application, apiKeyStore)
             val gattServerManager   = GattServerManager(application, bluetoothAdapter)
             val collector           = SensorCollector(application, dataRepository, gattServerManager)
+            val locationCollector   = LocationCollector(application, dataRepository)
+            val audioRecorder       = AudioFileRecorder(application)
             val edgeImpulseManager  = EdgeImpulseManager(apiKeyStore, dataRepository, deviceId)
             val zephyrBLEClient     = ZephyrBLEClient(application, dataRepository)
             val wearOSClient        = WearOSClient(application)
@@ -27,7 +29,7 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
             return SensorViewModel(
                 application, collector, gattServerManager,
                 edgeImpulseManager, dataRepository, zephyrBLEClient,
-                wearOSClient, apiKeyStore
+                wearOSClient, apiKeyStore, locationCollector, audioRecorder
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

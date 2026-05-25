@@ -21,3 +21,8 @@ local.properties
 
 # Keep the sample APK
 !sample-apk/*.apk
+
+# Edge Impulse KWS prebuilt TFLite static libs (~190 MB; download via app/src/main/cpp/tflite/download_tflite_libs.sh)
+app/src/main/cpp/tflite/android64/*.a
+app/src/main/cpp/tflite/android64/tflite-android64.zip
+app/.cxx/

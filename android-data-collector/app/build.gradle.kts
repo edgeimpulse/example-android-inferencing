@@ -10,12 +10,30 @@ android {
 
     defaultConfig {
         applicationId = "com.edgeimpulse.gattsensors"
-        minSdk = 26
+        // minSdk bumped from 26 -> 28: full-TFLite libtensorflow-lite.a uses
+        // aligned_alloc which is only available on Android API 28+.
+        minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "EI_API_KEY", "\"${project.findProperty("EI_API_KEY") ?: ""}\"")
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-fexceptions"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {

@@ -120,6 +120,32 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
         var selectedTab    by remember { mutableIntStateOf(0) }
         var showSettings   by remember { mutableStateOf(false) }
 
+        // ── Voice control (Hey Android wake word + on-device STT) ──────────
+        val context = LocalContext.current
+        val voiceScope = rememberCoroutineScope()
+        var voiceStatus     by remember { mutableStateOf("") }
+        var voiceTranscript by remember { mutableStateOf("") }
+        val voiceManager = remember {
+            com.edgeimpulse.gattsensors.voice.VoiceCommandManager(
+                context     = context.applicationContext,
+                scope       = voiceScope,
+                viewModel   = viewModel,
+                onStatus    = { voiceStatus = it },
+                onTranscript = { voiceTranscript = it },
+            )
+        }
+        val voiceEnabled by voiceManager.enabled.collectAsState()
+        val micPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) voiceManager.enable()
+            else voiceStatus = "RECORD_AUDIO permission denied"
+        }
+
+        DisposableEffect(Unit) {
+            onDispose { voiceManager.disable() }
+        }
+
         // ── API-key settings dialog ─────────────────────────────────────────
         if (showSettings) {
             ApiKeyDialog(
@@ -138,6 +164,26 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                         )
                     },
                     actions = {
+                        IconButton(
+                            onClick = {
+                                if (voiceEnabled) {
+                                    voiceManager.disable()
+                                } else {
+                                    val granted = ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.RECORD_AUDIO
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (granted) voiceManager.enable()
+                                    else micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (voiceEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                                contentDescription = "Voice control",
+                                tint = if (voiceEnabled) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         IconButton(onClick = { showSettings = true }) {
                             Icon(
                                 Icons.Default.Settings,
@@ -175,10 +221,35 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         ) { padding ->
             Box(Modifier.padding(padding)) {
-                when (selectedTab) {
-                    0 -> CollectScreen(viewModel, cameraHelper)
-                    1 -> ZephyrBLEScreen(viewModel)
-                    2 -> WearOSScreen(viewModel, cameraHelper)
+                Column(Modifier.fillMaxSize()) {
+                    if (voiceEnabled || voiceStatus.isNotEmpty()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                Text(
+                                    text = voiceStatus.ifBlank { "Voice ready" },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                if (voiceTranscript.isNotBlank()) {
+                                    Text(
+                                        text = "> $voiceTranscript",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f)) {
+                        when (selectedTab) {
+                            0 -> CollectScreen(viewModel, cameraHelper)
+                            1 -> ZephyrBLEScreen(viewModel)
+                            2 -> WearOSScreen(viewModel, cameraHelper)
+                        }
+                    }
                 }
             }
         }

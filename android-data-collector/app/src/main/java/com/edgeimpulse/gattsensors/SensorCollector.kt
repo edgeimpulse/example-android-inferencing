@@ -23,8 +23,6 @@ class SensorCollector(
 ) : SensorEventListener {
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private val heartRateSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE)
 
     /**
      * Map every available phone sensor to a stable canonical key (matches
@@ -50,21 +48,45 @@ class SensorCollector(
     private val sensorKeyByType: Map<Int, String> =
         allSensors.associate { (k, s) -> s.type to k }
 
+    /**
+     * UI-label → canonical key map. Drives the Collect-tab dropdown so any
+     * available IMU / environmental sensor can be captured as its own EI
+     * sample stream (just like the legacy Accelerometer / PPG modes).
+     */
+    private val labelToKey: Map<String, String> = mapOf(
+        "Accelerometer"        to "accel",
+        "Gyroscope"            to "gyro",
+        "Magnetometer"         to "mag",
+        "Linear Acceleration"  to "linear_accel",
+        "Gravity"              to "gravity",
+        "Rotation Vector"      to "rotation",
+        "PPG (Heart Rate)"     to "hr",
+        "Light"                to "light",
+        "Pressure (Barometer)" to "pressure",
+        "Proximity"            to "prox",
+    )
+
+    /** UI labels for every sensor this device actually exposes. */
+    fun availableSensorLabels(): List<String> {
+        val have = allSensors.map { it.first }.toSet()
+        return labelToKey.filterValues { it in have }.keys.toList()
+    }
+
+    private val sensorByKey: Map<String, Sensor> = allSensors.toMap()
+
     private val _dataFlow = MutableSharedFlow<SensorData>()
     val dataFlow = _dataFlow.asSharedFlow()
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
-    /** Single-sensor capture (legacy single-stream Collect tab). */
+    /** Single-sensor capture (Collect tab). Accepts any UI label from
+     *  [availableSensorLabels]; unknown labels fall back to the accelerometer. */
     fun start(sensorType: String = "Accelerometer") {
-        val sensor = when (sensorType) {
-            "Accelerometer" -> accelerometer
-            "PPG (Heart Rate)" -> heartRateSensor
-            else -> null
-        }
-        sensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+        val key = labelToKey[sensorType] ?: "accel"
+        val sensor = sensorByKey[key] ?: sensorByKey["accel"] ?: return
+        // Faster than SENSOR_DELAY_NORMAL so plotted lines stay smooth
+        // without flooding the upload buffer for low-rate environmental sensors.
+        sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
     }
 
     /** Register every sensor the device exposes for a multi-modal capture. */
@@ -80,11 +102,11 @@ class SensorCollector(
 
     override fun onSensorChanged(event: SensorEvent) {
         val key = sensorKeyByType[event.sensor.type]
-        val values = when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> mapOf("accelX" to event.values[0], "accelY" to event.values[1], "accelZ" to event.values[2])
-            Sensor.TYPE_HEART_RATE -> mapOf("heartRate" to event.values[0])
-            else -> emptyMap()
-        }
+        // Tag every axis with a per-sensor prefix so multiple streams can
+        // share the same chart pane without colliding key names.
+        val values: Map<String, Float> = if (key != null) {
+            event.values.mapIndexed { i, v -> "${key}_${i}" to v }.toMap()
+        } else emptyMap()
 
         // Feed the multi-modal recorder with a key + raw values copy so
         // every sensor stream is uploaded as its own EI sample.

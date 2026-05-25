@@ -360,6 +360,45 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     }
 
     // -------------------------------------------------------------------------
+    // Microphone / audio upload
+    // -------------------------------------------------------------------------
+
+    /**
+     * Upload a raw WAV [wavBytes] clip to Edge Impulse ingestion. Use this
+     * for one-shot microphone captures (16 kHz mono PCM16 is the standard
+     * EI audio format).
+     */
+    fun uploadAudio(wavBytes: ByteArray, label: String) {
+        val multipart = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "data",
+                "audio_${System.currentTimeMillis()}.wav",
+                wavBytes.toRequestBody("audio/wav".toMediaType())
+            )
+            .build()
+        val request = Request.Builder()
+            .url("https://ingestion.edgeimpulse.com/api/training/files")
+            .header("x-api-key", apiKeyStore.get())
+            .header("x-label", label)
+            .post(multipart)
+            .build()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    Log.e("DataRepository", "Audio upload failed: ${response.body?.string()}")
+                } else {
+                    Log.d("DataRepository", "Audio uploaded with label='$label'")
+                }
+            } catch (e: IOException) {
+                Log.e("DataRepository", "Audio upload exception", e)
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Unified multi-modal capture (phone sensors + Wear OS samples)
     // -------------------------------------------------------------------------
 

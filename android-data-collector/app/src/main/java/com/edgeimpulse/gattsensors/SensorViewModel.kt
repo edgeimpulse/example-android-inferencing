@@ -17,8 +17,26 @@ class SensorViewModel(
     private val dataRepository: DataRepository,
     val zephyrBLEClient: ZephyrBLEClient,
     val wearOSClient: WearOSClient,
-    val apiKeyStore: ApiKeyStore
+    val apiKeyStore: ApiKeyStore,
+    private val locationCollector: LocationCollector,
+    private val audioRecorder: AudioFileRecorder,
 ) : AndroidViewModel(application) {
+
+    /**
+     * Hooks the always-on KWS engine uses to claim/release the mic. Set by
+     * [MainActivity] once [voice.VoiceCommandManager] exists. Audio capture
+     * pauses the wake-word listener so the two don't fight for the
+     * AudioRecord; KWS is resumed on completion.
+     */
+    var onMicAcquire: (() -> Unit)? = null
+    var onMicRelease: (() -> Unit)? = null
+
+    /** UI labels for the Collect-tab dropdown. */
+    val collectSourceOptions: List<String> = buildList {
+        addAll(sensorCollector.availableSensorLabels())
+        add("GPS (Location)")
+        add("Microphone (Audio)")
+    }
 
     /** Display name of the connected Wear OS node, null if none. */
     val wearNode        = wearOSClient.connectedNode
@@ -62,6 +80,13 @@ class SensorViewModel(
                 _sensorData.value = it
             }
         }
+        // GPS samples flow through the same StateFlow so the live readout in
+        // the Collect tab updates regardless of which source is active.
+        viewModelScope.launch {
+            locationCollector.dataFlow.collect {
+                _sensorData.value = it
+            }
+        }
         // Route Wear OS sample/event messages into the repository so the
         // unified recorder picks them up.
         viewModelScope.launch {
@@ -84,19 +109,51 @@ class SensorViewModel(
     /** Start collecting for exactly [durationMs] ms, then auto-stop. */
     fun startSensorForDuration(sensorType: String, durationMs: Long) {
         if (_isCollecting.value) return
-        _isCollecting.value = true
-        gattServerManager.startServer()
-        sensorCollector.start(sensorType)
-        durationJob = viewModelScope.launch {
-            delay(durationMs)
-            stopSensor()
+        when (sensorType) {
+            "GPS (Location)" -> {
+                _isCollecting.value = true
+                locationCollector.start()
+                durationJob = viewModelScope.launch {
+                    delay(durationMs)
+                    locationCollector.stop()
+                    _isCollecting.value = false
+                }
+            }
+            "Microphone (Audio)" -> {
+                _isCollecting.value = true
+                // Release the always-on KWS so the recorder owns the mic.
+                onMicAcquire?.invoke()
+                val label = lastLabel.ifBlank { "audio" }
+                audioRecorder.start(durationMs) { wav ->
+                    if (wav != null) dataRepository.uploadAudio(wav, label)
+                    onMicRelease?.invoke()
+                    _isCollecting.value = false
+                }
+            }
+            else -> {
+                _isCollecting.value = true
+                gattServerManager.startServer()
+                sensorCollector.start(sensorType)
+                durationJob = viewModelScope.launch {
+                    delay(durationMs)
+                    stopSensor()
+                }
+            }
         }
     }
+
+    /** Last label entered in the Collect tab; used for audio uploads. */
+    @Volatile var lastLabel: String = ""
 
     fun stopSensor() {
         durationJob?.cancel()
         durationJob = null
         sensorCollector.stop()
+        locationCollector.stop()
+        if (audioRecorder.isRecording()) {
+            audioRecorder.cancel()
+            onMicRelease?.invoke()
+        }
         gattServerManager.stopServer()
         _isCollecting.value = false
     }
@@ -188,6 +245,7 @@ class SensorViewModel(
         if (includePhoneSensors) {
             gattServerManager.startServer()
             sensorCollector.startAll()
+            locationCollector.start()
             _isCollecting.value = true
         }
         if (includeWear) {
@@ -207,6 +265,7 @@ class SensorViewModel(
             delay(durationMs)
             if (includePhoneSensors) {
                 sensorCollector.stop()
+                locationCollector.stop()
                 gattServerManager.stopServer()
                 _isCollecting.value = false
             }
@@ -227,6 +286,8 @@ class SensorViewModel(
         // battery (or leak the ViewModel via stale listeners) after the host
         // Activity is destroyed.
         sensorCollector.stop()
+        locationCollector.stop()
+        if (audioRecorder.isRecording()) audioRecorder.cancel()
         gattServerManager.stopServer()
         edgeImpulseManager.disconnect()
         dataRepository.stopOfflineLogging()

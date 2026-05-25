@@ -155,7 +155,20 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
         }
 
         DisposableEffect(Unit) {
-            onDispose { voiceManager.disable() }
+            // Let audio capture pause the wake-word listener for the duration
+            // of a manual mic recording, then re-arm KWS automatically.
+            viewModel.onMicAcquire = { voiceManager.disable() }
+            viewModel.onMicRelease = {
+                val granted = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                if (granted) voiceManager.enable()
+            }
+            onDispose {
+                viewModel.onMicAcquire = null
+                viewModel.onMicRelease = null
+                voiceManager.disable()
+            }
         }
 
         // ── API-key settings dialog ─────────────────────────────────────────
@@ -275,6 +288,7 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
+    val context = LocalContext.current
     val sensorData  by viewModel.sensorData.collectAsState()
     val isRunning   by viewModel.isCollecting.collectAsState()
     val eiConnected by viewModel.eiConnected.collectAsState()
@@ -284,9 +298,14 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     var offlineOn  by remember { mutableStateOf(false) }
     var statusMsg  by remember { mutableStateOf("") }
 
-    val sensorOptions = listOf("Accelerometer", "PPG (Heart Rate)")
+    val sensorOptions = viewModel.collectSourceOptions
     var dropdownOpen   by remember { mutableStateOf(false) }
-    var selectedSensor by remember { mutableStateOf(sensorOptions[0]) }
+    var selectedSensor by remember { mutableStateOf(sensorOptions.firstOrNull() ?: "Accelerometer") }
+
+    // Location permission — prompted lazily the first time GPS is selected.
+    val locationPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* state read directly via ContextCompat at click time */ }
 
     // Duration state
     val durationPresets = listOf(1, 2, 10, 20)
@@ -449,6 +468,19 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                     modifier = Modifier.weight(1f),
                     enabled  = !isRunning && label.isNotBlank(),
                     onClick  = {
+                        // Audio capture needs to upload under the current label.
+                        viewModel.lastLabel = label
+                        // GPS needs runtime location permission — prompt if missing.
+                        if (selectedSensor == "GPS (Location)") {
+                            val ok = ContextCompat.checkSelfPermission(
+                                context, Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (!ok) {
+                                locationPermLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                statusMsg = "Grant location permission and tap Start again."
+                                return@Button
+                            }
+                        }
                         if (offlineOn) viewModel.startOfflineLogging()
                         viewModel.startSensorForDuration(
                             selectedSensor,

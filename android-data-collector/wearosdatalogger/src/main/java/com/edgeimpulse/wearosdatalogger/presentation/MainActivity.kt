@@ -1,72 +1,78 @@
-/* While this template provides a good starting point for using Wear Compose, you can always
- * take a look at https://github.com/android/wear-os-samples/tree/main/ComposeStarter to find the
- * most up to date changes to the libraries and their usages.
+/* The Clear BSD License
+ *
+ * Copyright (c) 2026 EdgeImpulse Inc.
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  */
-
 package com.edgeimpulse.wearosdatalogger.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
-import androidx.wear.tooling.preview.devices.WearDevices
-import com.edgeimpulse.wearosdatalogger.R
+import com.edgeimpulse.wearosdatalogger.WearSensorBus
 import com.edgeimpulse.wearosdatalogger.presentation.theme.GATTSensors2Theme
 
+/**
+ * Watch launcher. The phone drives capture via the `/wear/cmd` message
+ * path (handled by `PhoneCommandListenerService`); this screen mirrors
+ * [WearSensorBus] state for quick visual feedback and offers a manual
+ * fallback start/stop button for debugging without the phone.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-
         super.onCreate(savedInstanceState)
-
         setTheme(android.R.style.Theme_DeviceDefault)
-
-        setContent {
-            WearApp("Android")
-        }
+        WearSensorBus.init(applicationContext)
+        setContent { WearApp(applicationContext) }
     }
 }
 
 @Composable
-fun WearApp(greetingName: String) {
+fun WearApp(ctx: android.content.Context) {
+    val running by WearSensorBus.running.collectAsState()
+    val label   by WearSensorBus.label.collectAsState()
+    val sent    by WearSensorBus.sentCount.collectAsState()
+
     GATTSensors2Theme {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
                 .background(MaterialTheme.colors.background),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             TimeText()
-            Greeting(greetingName = greetingName)
+            Column(
+                modifier = Modifier.padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+            ) {
+                Text(
+                    text = if (running) "Recording" else "Idle",
+                    color = MaterialTheme.colors.primary,
+                )
+                Text("label: $label", color = MaterialTheme.colors.onBackground)
+                Text("sent: $sent", color = MaterialTheme.colors.onBackground)
+                Button(onClick = {
+                    if (running) WearSensorBus.stop()
+                    else WearSensorBus.start(ctx, label.ifBlank { "idle" }, 0L)
+                }) {
+                    Text(if (running) "Stop" else "Manual")
+                }
+            }
         }
     }
-}
-
-@Composable
-fun Greeting(greetingName: String) {
-    Text(
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colors.primary,
-        text = stringResource(R.string.hello_world, greetingName)
-    )
-}
-
-@Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true)
-@Composable
-fun DefaultPreview() {
-    WearApp("Preview Android")
 }

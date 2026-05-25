@@ -66,6 +66,7 @@ class ZephyrBLEClient(
 
     private var bluetoothGatt: BluetoothGatt? = null
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val scannedDevicesLock = Any()
 
     // Pending: subscribe to sensor char after inference CCC write completes
     private var pendingSensorCharSubscription = false
@@ -79,11 +80,14 @@ class ZephyrBLEClient(
             val name = result.scanRecord?.deviceName ?: result.device.name ?: return
             val bleDevice = BLEDevice(result.device, name, result.device.address, result.rssi)
 
-            // Accumulate for the UI list
-            val current = _scannedDevices.value.toMutableList()
-            if (current.none { it.address == bleDevice.address }) {
-                current.add(bleDevice)
-                _scannedDevices.value = current
+            // Accumulate for the UI list. BLE scan callbacks can arrive on different
+            // threads, so the read-modify-write must be guarded.
+            synchronized(scannedDevicesLock) {
+                val current = _scannedDevices.value.toMutableList()
+                if (current.none { it.address == bleDevice.address }) {
+                    current.add(bleDevice)
+                    _scannedDevices.value = current
+                }
             }
 
             // Auto-connect to EI-Monitor
@@ -194,7 +198,14 @@ class ZephyrBLEClient(
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
-            if (status == BluetoothGatt.GATT_SUCCESS && pendingSensorCharSubscription) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "CCCD write failed (status=$status) for ${descriptor.characteristic.uuid}")
+                // Reset pending flag so we don't get stuck waiting for a callback that
+                // will never arrive with success.
+                pendingSensorCharSubscription = false
+                return
+            }
+            if (pendingSensorCharSubscription) {
                 pendingSensorCharSubscription = false
                 val service = gatt.getService(GattProfile.EI_SERVICE_UUID) ?: return
                 val sensorChar = service.getCharacteristic(GattProfile.SENSOR_CHAR_UUID)

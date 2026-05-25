@@ -70,11 +70,18 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
         csvFileWriter = null
     }
 
+    // Flush CSV every N writes so an app crash doesn't lose buffered data.
+    private var csvWriteCount = 0
+    private val csvFlushInterval = 20
+
     fun saveSensorData(data: SensorData) {
         if (isLoggingOffline) {
             try {
                 val values = offlineHeaders.map { header -> if (header == "timestamp") data.timestamp.toString() else data.values[header]?.toString() ?: "" }
                 csvFileWriter?.append(values.joinToString(",") + "\n")
+                if (++csvWriteCount % csvFlushInterval == 0) {
+                    csvFileWriter?.flush()
+                }
             } catch (e: IOException) {
                 Log.e("DataRepository", "Error writing to CSV file", e)
             }
@@ -176,13 +183,15 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     private val pendingZephyrSensorData = mutableListOf<FloatArray>()
 
     fun saveZephyrInferenceResult(result: ZephyrInferenceResult) {
-        // Build a sensor payload from the buffered raw sensor windows.
-        // If no sensor windows are available yet, create a synthetic single-sample payload.
-        val sensorWindows: List<List<Float>> = if (pendingZephyrSensorData.isNotEmpty()) {
-            pendingZephyrSensorData.map { it.toList() }.also { pendingZephyrSensorData.clear() }
-        } else {
-            listOf(listOf(result.confidence))
+        // Build a sensor payload from the buffered raw sensor windows. If no sensor
+        // data has been received yet, skip the upload entirely — uploading the
+        // confidence value as a fake feature would poison the dataset.
+        if (pendingZephyrSensorData.isEmpty()) {
+            Log.w("DataRepository", "No sensor data buffered for inference '${result.label}'; skipping upload")
+            return
         }
+        val sensorWindows: List<List<Float>> =
+            pendingZephyrSensorData.map { it.toList() }.also { pendingZephyrSensorData.clear() }
 
         val sensors = listOf(SensorInfo("Zephyr IMU", listOf(100), 600))
         val payload = IngestionPayload(

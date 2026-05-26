@@ -164,7 +164,7 @@ class SensorViewModel(
         speechRecognitionHelper.startListening()
     }
 
-    fun startOfflineLogging(headers: List<String> = listOf("accelX", "accelY", "accelZ")) {
+    fun startOfflineLogging(headers: List<String> = emptyList()) {
         dataRepository.startOfflineLogging(headers)
     }
 
@@ -176,12 +176,98 @@ class SensorViewModel(
         dataRepository.uploadStoredCsvFiles(label)
     }
 
-    fun captureAndUploadImage(cameraHelper: CameraHelper, label: String) {
-        cameraHelper.captureJpeg { jpegBytes ->
-            viewModelScope.launch {
-                dataRepository.uploadImage(jpegBytes, label)
-            }
+    // ----- On-device dataset management (Datasets tab) -----
+
+    private val _datasets = MutableStateFlow<List<StoredDataset>>(emptyList())
+    val datasets = _datasets.asStateFlow()
+
+    fun refreshDatasets() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            _datasets.value = dataRepository.listStoredDatasets()
         }
+    }
+
+    suspend fun previewDataset(file: java.io.File, maxRows: Int = 50): DatasetPreview =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            dataRepository.previewDataset(file, maxRows)
+        }
+
+    fun renameDataset(file: java.io.File, newName: String, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val ok = dataRepository.renameDataset(file, newName) != null
+            refreshDatasets()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onDone(ok) }
+        }
+    }
+
+    fun deleteDataset(file: java.io.File) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            dataRepository.deleteDataset(file)
+            refreshDatasets()
+        }
+    }
+
+    fun uploadDataset(
+        file: java.io.File,
+        label: String,
+        deleteAfter: Boolean,
+        onResult: (Result<Unit>) -> Unit,
+    ) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = dataRepository.uploadDataset(file, label, deleteAfter)
+            refreshDatasets()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onResult(result) }
+        }
+    }
+
+    /** Load full CSV for the spreadsheet editor (IO dispatcher). */
+    suspend fun loadDatasetFull(file: java.io.File): EditableDataset =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            dataRepository.loadDatasetFull(file)
+        }
+
+    /** Save edited rows back to the same file. */
+    fun saveDataset(
+        file: java.io.File,
+        headers: List<String>,
+        rows: List<List<String>>,
+        onDone: (Boolean) -> Unit,
+    ) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val ok = dataRepository.writeDataset(file, headers, rows)
+            refreshDatasets()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onDone(ok) }
+        }
+    }
+
+    /** Save edited rows as a brand-new file in the datasets folder. */
+    fun saveDatasetAs(
+        baseName: String,
+        headers: List<String>,
+        rows: List<List<String>>,
+        onDone: (java.io.File?) -> Unit,
+    ) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val out = dataRepository.writeDatasetAs(baseName, headers, rows)
+            refreshDatasets()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onDone(out) }
+        }
+    }
+
+    fun captureAndUploadImage(
+        cameraHelper: CameraHelper,
+        label: String,
+        onResult: (success: Boolean, msg: String) -> Unit = { _, _ -> },
+    ) {
+        cameraHelper.captureJpeg(
+            onImageCaptured = { jpegBytes ->
+                viewModelScope.launch {
+                    val ok = dataRepository.uploadImage(jpegBytes, label)
+                    onResult(ok, if (ok) "Image uploaded as '$label'" else "Upload failed — check API key and network")
+                }
+            },
+            onError = { msg -> onResult(false, msg) },
+        )
     }
 
     /** Push a new label to the Nesso firmware via the STATE characteristic. */
@@ -257,9 +343,11 @@ class SensorViewModel(
             zephyrBLEClient.resetSampleCount()
             dataRepository.startZephyrRecording()
         }
-        cameraHelper?.captureJpeg { jpeg ->
-            viewModelScope.launch { dataRepository.uploadImage(jpeg, label) }
-        }
+        cameraHelper?.captureJpeg(
+            onImageCaptured = { jpeg ->
+                viewModelScope.launch { dataRepository.uploadImage(jpeg, label) }
+            },
+        )
 
         multiJob = viewModelScope.launch {
             delay(durationMs)

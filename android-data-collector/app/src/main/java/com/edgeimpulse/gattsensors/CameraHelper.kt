@@ -14,23 +14,25 @@ import java.io.ByteArrayOutputStream
 private const val TAG = "CameraHelper"
 
 /**
- * Wraps CameraX for in-memory JPEG capture.
+ * Wraps CameraX for in-memory JPEG capture with an optional live preview.
  *
- * Call [bindToLifecycle] once in the Activity/Fragment. Then call
- * [captureJpeg] to take a photo and receive the JPEG-encoded bytes.
- *
- * The in-memory `takePicture(executor, OnImageCapturedCallback)` variant is
- * used (the file/OutputStream variant requires a real File / MediaStore URI
- * and does not give you bytes directly).
+ * Call [bindToLifecycle] once (without a surface provider) for background
+ * capture-only use. Call [bindToLifecycle] again with a [Preview.SurfaceProvider]
+ * (from a `PreviewView`) to attach a live viewfinder; the use-cases are
+ * unbound and rebound so the same provider can be swapped in/out safely.
  */
 class CameraHelper(private val context: Context) {
 
     private var imageCapture: ImageCapture? = null
+    private var cameraProvider: ProcessCameraProvider? = null
 
     @Volatile
     private var bound: Boolean = false
 
-    fun bindToLifecycle(lifecycleOwner: LifecycleOwner) {
+    fun bindToLifecycle(
+        lifecycleOwner: LifecycleOwner,
+        surfaceProvider: Preview.SurfaceProvider? = null,
+    ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             val provider = try {
@@ -39,19 +41,27 @@ class CameraHelper(private val context: Context) {
                 Log.e(TAG, "Camera provider unavailable: ${e.message}")
                 return@addListener
             }
+            cameraProvider = provider
             val capture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .build()
+            val useCases: Array<UseCase> = if (surfaceProvider != null) {
+                val preview = Preview.Builder().build()
+                    .also { it.setSurfaceProvider(surfaceProvider) }
+                arrayOf(preview, capture)
+            } else {
+                arrayOf(capture)
+            }
             try {
                 provider.unbindAll()
                 provider.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
-                    capture,
+                    *useCases,
                 )
                 imageCapture = capture
                 bound = true
-                Log.i(TAG, "Camera bound (BACK)")
+                Log.i(TAG, "Camera bound (preview=${surfaceProvider != null})")
             } catch (e: Exception) {
                 imageCapture = null
                 bound = false
@@ -64,16 +74,17 @@ class CameraHelper(private val context: Context) {
 
     /**
      * Capture one JPEG frame and deliver the encoded bytes to [onImageCaptured].
-     * Runs on the camera executor; the callback is invoked on the same thread.
-     *
-     * The CameraX `ImageProxy` is in `JPEG` format already (since
-     * `ImageCapture` defaults to `OUTPUT_FORMAT_JPEG`), but its rotation
-     * metadata may be non-zero, so we re-encode rotated when needed so the
-     * uploaded sample is upright in Edge Impulse Studio.
+     * [onError] is called (on the main thread) if the capture fails so callers
+     * can update their status UI.
      */
-    fun captureJpeg(onImageCaptured: (ByteArray) -> Unit) {
+    fun captureJpeg(
+        onImageCaptured: (ByteArray) -> Unit,
+        onError: (String) -> Unit = {},
+    ) {
         val capture = imageCapture ?: run {
-            Log.e(TAG, "captureJpeg called before bindToLifecycle (or bind failed)")
+            val msg = "Camera not ready — grant permission and try again"
+            Log.e(TAG, msg)
+            onError(msg)
             return
         }
 
@@ -83,10 +94,11 @@ class CameraHelper(private val context: Context) {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     try {
                         val bytes = imageProxyToJpegBytes(image)
-                        Log.i(TAG, "captureJpeg ok: ${bytes.size} bytes, rot=${image.imageInfo.rotationDegrees}")
+                        Log.i(TAG, "captureJpeg ok: ${bytes.size} bytes")
                         onImageCaptured(bytes)
                     } catch (t: Throwable) {
                         Log.e(TAG, "JPEG conversion failed: ${t.message}", t)
+                        onError("JPEG conversion failed: ${t.message}")
                     } finally {
                         image.close()
                     }
@@ -94,23 +106,20 @@ class CameraHelper(private val context: Context) {
 
                 override fun onError(exception: ImageCaptureException) {
                     Log.e(TAG, "Image capture failed: ${exception.message}", exception)
+                    onError("Capture failed: ${exception.message}")
                 }
             },
         )
     }
 
     private fun imageProxyToJpegBytes(image: ImageProxy): ByteArray {
-        // ImageCapture default output format is JPEG, so plane[0] holds the
-        // compressed bytes directly.
         val buffer = image.planes[0].buffer
         val raw = ByteArray(buffer.remaining()).also { buffer.get(it) }
 
         val rotation = image.imageInfo.rotationDegrees
         if (rotation == 0) return raw
 
-        // Re-encode rotated so the upload is upright.
-        val bmp: Bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.size)
-            ?: return raw
+        val bmp: Bitmap = BitmapFactory.decodeByteArray(raw, 0, raw.size) ?: return raw
         val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
         val rotated = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
         if (rotated !== bmp) bmp.recycle()
@@ -120,4 +129,3 @@ class CameraHelper(private val context: Context) {
         return out.toByteArray()
     }
 }
-

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Edge Impulse "ei" wordmark.
-  Adaptive icon canvas: 108x108. Safe inner area: ~66x66 centered at (54,54).
+  Edge Impulse official logo mark – white.
+  Paths from the canonical SVG (viewBox 0 0 351 48, logo mark ~x:0-68, y:0-48).
+  Scaled 0.97x and centred inside the 108x108 adaptive-icon safe zone.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,28 +10,30 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- lowercase "e" -->
-    <path
-        android:fillColor="#A7F400"
-        android:pathData="M30,58
-                          a14,14 0 1,1 26,8
-                          l-5,-3
-                          a9,9 0 1,0 -16,-6
-                          h18
-                          a14,14 0 0,1 -23,1 Z" />
+    <group
+        android:scaleX="0.97"
+        android:scaleY="0.97"
+        android:translateX="21"
+        android:translateY="31">
 
-    <!-- lowercase "i" stem -->
-    <path
-        android:fillColor="#A7F400"
-        android:pathData="M62,46 h6 v26 h-6 Z" />
+        <!-- right bar (yellow in colour logo) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M45.1353,19.1642C42.3746,19.1642 40.1387,21.3925 40.1387,24.1437C40.1387,26.8949 42.3746,29.1232 45.1353,29.1232H61.652L57.8514,19.1689H45.1353V19.1642Z" />
 
-    <!-- "i" dot -->
-    <path
-        android:fillColor="#A7F400"
-        android:pathData="M65,38 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <!-- left bar (green in colour logo) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M6.9068,29.1184H31.1477C33.9084,29.1184 36.1443,26.8901 36.1443,24.1389C36.1443,21.3924 33.9084,19.1594 31.1477,19.1594H6.9068C4.1461,19.1594 1.9102,21.3877 1.9102,24.1389C1.9102,26.8901 4.1461,29.1184 6.9068,29.1184Z" />
 
-    <!-- pulse line baseline -->
-    <path
-        android:fillColor="#A7F400"
-        android:pathData="M22,82 h30 l3,-6 l4,12 l4,-9 l3,3 h20 v3 h-21 l-3,-3 l-4,9 l-4,-12 l-2,3 h-30 Z" />
+        <!-- bottom arc (red/orange in colour logo) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M64.1997,36.3828H12.5412C11.2365,34.8376 9.2842,33.8483 7.1002,33.8483C3.1767,33.8483 0,37.0187 0,40.9241C0,44.8342 3.1814,48 7.1002,48C9.2842,48 11.2365,47.0154 12.5412,45.4655H67.6695L64.1997,36.3828Z" />
+
+        <!-- top arc (teal in colour logo) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M51.7767,2.6664H12.6452C11.3452,1.0458 9.3456,0 7.1002,0C3.1767,0 0,3.1705 0,7.0759C0,10.986 3.1814,14.1517 7.1002,14.1517C9.2227,14.1517 11.1183,13.219 12.4183,11.7491H55.2465L51.7767,2.6664Z" />
+    </group>
 </vector>

@@ -69,12 +69,45 @@ object WearSensorBus : SensorEventListener {
         Sensor.TYPE_PROXIMITY           to "prox",
     )
 
+    /** Sensor keys actually present on this device (populated in [init]). */
+    private val _availableSensors = MutableStateFlow<List<String>>(emptyList())
+    val availableSensors = _availableSensors.asStateFlow()
+
+    /** Sensor key whose magnitude is mirrored into [previewSamples]. */
+    private val _previewSensor = MutableStateFlow("accel")
+    val previewSensor = _previewSensor.asStateFlow()
+
+    private const val PREVIEW_LEN = 128
+    private val previewRing = FloatArray(PREVIEW_LEN)
+    private var previewHead = 0
+    private var previewFilled = 0
+    private val _previewSamples = MutableStateFlow(FloatArray(0))
+    /** Rolling magnitude of the [previewSensor], newest sample last. */
+    val previewSamples = _previewSamples.asStateFlow()
+
     fun init(ctx: Context) {
         if (sensorManager == null) {
             sensorManager = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             messageClient = Wearable.getMessageClient(ctx)
             nodeClient    = Wearable.getNodeClient(ctx)
+            val sm = sensorManager!!
+            _availableSensors.value = sensorKey.entries
+                .filter { sm.getDefaultSensor(it.key) != null }
+                .map { it.value }
+            if (_previewSensor.value !in _availableSensors.value) {
+                _previewSensor.value = _availableSensors.value.firstOrNull() ?: "accel"
+            }
         }
+    }
+
+    fun setPreviewSensor(key: String) {
+        if (key == _previewSensor.value) return
+        _previewSensor.value = key
+        synchronized(previewRing) {
+            previewHead = 0; previewFilled = 0
+            for (i in previewRing.indices) previewRing[i] = 0f
+        }
+        _previewSamples.value = FloatArray(0)
     }
 
     fun start(ctx: Context, newLabel: String, durationMs: Long) {
@@ -128,6 +161,25 @@ object WearSensorBus : SensorEventListener {
             append('\n')
         }
         synchronized(bufferLock) { buffer.append(sb) }
+
+        if (key == _previewSensor.value) {
+            val v = event.values
+            val mag = when (v.size) {
+                0 -> 0f
+                1 -> v[0]
+                else -> kotlin.math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+            }
+            val snapshot: FloatArray = synchronized(previewRing) {
+                previewRing[previewHead] = mag
+                previewHead = (previewHead + 1) % PREVIEW_LEN
+                if (previewFilled < PREVIEW_LEN) previewFilled++
+                FloatArray(previewFilled) { i ->
+                    val start = if (previewFilled < PREVIEW_LEN) 0 else previewHead
+                    previewRing[(start + i) % PREVIEW_LEN]
+                }
+            }
+            _previewSamples.value = snapshot
+        }
     }
 
     override fun onAccuracyChanged(s: Sensor?, accuracy: Int) {}

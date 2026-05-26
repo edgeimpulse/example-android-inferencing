@@ -19,6 +19,7 @@
     <!-- Optional but recommended -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -59,6 +60,21 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/wear/" />
             </intent-filter>
         </service>
+
+        <!--
+            FileProvider used by the Datasets tab to share recorded CSV files
+            via the system share sheet. Exposes the app-private sensor_logs
+            folder under a content:// URI scoped to ${applicationId}.fileprovider.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

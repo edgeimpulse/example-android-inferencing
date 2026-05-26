@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!--
+        Maps the on-device dataset folder (where offline-logged CSVs land)
+        into FileProvider so they can be shared via Intent.ACTION_SEND with
+        a content:// URI granting temporary read access to the receiving app.
+    -->
+    <external-files-path name="sensor_logs" path="sensor_logs/" />
+</paths>

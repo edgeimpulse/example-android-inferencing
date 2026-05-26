@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -23,6 +24,32 @@ data class IngestionRequest(val protected: Protected, val payload: IngestionPayl
 data class Protected(val ver: String, val alg: String, val signature: String)
 data class IngestionPayload(val device_name: String, val device_type: String, val interval_ms: Number, val sensors: List<SensorInfo>, val values: List<List<Float>>)
 
+/** Metadata for one on-device CSV dataset shown in the Datasets tab. */
+data class StoredDataset(
+    val file: File,
+    val name: String,
+    val sizeBytes: Long,
+    val sampleCount: Int,
+    val createdAt: Long,
+    val headers: List<String>,
+)
+
+/** First N rows of a CSV (header excluded) shown in the dataset previewer. */
+data class DatasetPreview(val headers: List<String>, val rows: List<String>)
+
+/**
+ * Full in-memory view of a CSV dataset for the spreadsheet editor.
+ * [rows] is a list of pre-split records (no header). Each row may legally
+ * have a different length to [headers] — short rows are right-padded by the
+ * editor UI; over-long rows have their trailing columns merged into the
+ * last cell so nothing is silently lost on round-trip.
+ */
+data class EditableDataset(
+    val file: File,
+    val headers: List<String>,
+    val rows: List<List<String>>,
+)
+
 class DataRepository(private val context: Context, private val apiKeyStore: ApiKeyStore) {
 
     private val client = OkHttpClient()
@@ -36,21 +63,31 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     private var isLoggingOffline = false
     private var csvFileWriter: FileWriter? = null
     private var offlineHeaders: List<String> = emptyList()
+    // When true, the header row is written from the first sample's actual
+    // value keys rather than the caller-provided default. This avoids
+    // empty columns when the UI hasn't told us which sensor is being
+    // recorded (e.g. gyro samples keyed `gyro_0` arriving while headers
+    // default to `accelX`/`accelY`/`accelZ`).
+    private var offlineHeadersDeferred = false
 
     // For remote management in-memory sampling
     private val remoteSampleData = mutableListOf<SensorData>()
     private var isSamplingForRemote = false
 
-    fun startOfflineLogging(headers: List<String> = listOf("accelX", "accelY", "accelZ")) {
+    fun startOfflineLogging(headers: List<String> = emptyList()) {
         if (isLoggingOffline) return
         isLoggingOffline = true
-        offlineHeaders = listOf("timestamp") + headers
+        offlineHeadersDeferred = headers.isEmpty()
+        offlineHeaders = if (offlineHeadersDeferred) listOf("timestamp")
+                         else listOf("timestamp") + headers
         val dir = File(context.getExternalFilesDir(null), "sensor_logs")
         if (!dir.exists()) dir.mkdirs()
         val file = File(dir, "sensor_data_${getDateString()}.csv")
         try {
             csvFileWriter = FileWriter(file)
-            csvFileWriter?.append(offlineHeaders.joinToString(",") + "\n")
+            if (!offlineHeadersDeferred) {
+                csvFileWriter?.append(offlineHeaders.joinToString(",") + "\n")
+            }
         } catch (e: IOException) {
             Log.e("DataRepository", "Error creating CSV file", e)
             csvFileWriter = null
@@ -77,6 +114,14 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     fun saveSensorData(data: SensorData) {
         if (isLoggingOffline) {
             try {
+                // Lazily fix the header row to whatever the first real sample
+                // carries — guarantees the value columns line up with the
+                // keys we look up below.
+                if (offlineHeadersDeferred && data.values.isNotEmpty()) {
+                    offlineHeaders = listOf("timestamp") + data.values.keys.toList()
+                    csvFileWriter?.append(offlineHeaders.joinToString(",") + "\n")
+                    offlineHeadersDeferred = false
+                }
                 val values = offlineHeaders.map { header -> if (header == "timestamp") data.timestamp.toString() else data.values[header]?.toString() ?: "" }
                 csvFileWriter?.append(values.joinToString(",") + "\n")
                 if (++csvWriteCount % csvFlushInterval == 0) {
@@ -165,6 +210,187 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
                 uploadFile(file, label)
                 file.delete()
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // On-device dataset management (browse / preview / rename / delete /
+    // share / upload individual files before deciding what to keep).
+    // -------------------------------------------------------------------------
+
+    /** Folder where offline-logged CSVs live. Created lazily. */
+    fun datasetsDir(): File {
+        val dir = File(context.getExternalFilesDir(null), "sensor_logs")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    /**
+     * List every CSV in the dataset folder along with cheap-to-compute
+     * metadata (size, sample count = non-header lines, creation time, and the
+     * comma-separated headers from line 1). Sample count requires reading the
+     * file once so this is O(total bytes) — fine for the modest CSVs the app
+     * produces, but call from a background dispatcher.
+     */
+    fun listStoredDatasets(): List<StoredDataset> {
+        val files = datasetsDir().listFiles { f -> f.extension == "csv" } ?: return emptyList()
+        return files.sortedByDescending { it.lastModified() }.map { f ->
+            var headers: List<String> = emptyList()
+            var sampleCount = 0
+            try {
+                f.bufferedReader().use { br ->
+                    val first = br.readLine()
+                    if (first != null) {
+                        headers = first.split(',').map { it.trim() }
+                        while (br.readLine() != null) sampleCount++
+                    }
+                }
+            } catch (e: IOException) {
+                Log.w("DataRepository", "Failed to read ${f.name}", e)
+            }
+            StoredDataset(
+                file        = f,
+                name        = f.name,
+                sizeBytes   = f.length(),
+                sampleCount = sampleCount,
+                createdAt   = f.lastModified(),
+                headers     = headers
+            )
+        }
+    }
+
+    /** First [maxRows] data rows of a dataset (header excluded), as raw CSV lines. */
+    fun previewDataset(file: File, maxRows: Int = 50): DatasetPreview {
+        val rows = mutableListOf<String>()
+        var headers = emptyList<String>()
+        try {
+            file.bufferedReader().use { br ->
+                val first = br.readLine() ?: return DatasetPreview(emptyList(), emptyList())
+                headers = first.split(',').map { it.trim() }
+                var line = br.readLine()
+                while (line != null && rows.size < maxRows) {
+                    rows.add(line)
+                    line = br.readLine()
+                }
+            }
+        } catch (e: IOException) {
+            Log.w("DataRepository", "Preview failed for ${file.name}", e)
+        }
+        return DatasetPreview(headers, rows)
+    }
+
+    /**
+     * Rename a dataset on disk. [newName] may omit the .csv extension; one is
+     * added automatically. Returns the renamed file, or null on failure
+     * (e.g. target already exists, or the file is currently being written to).
+     */
+    fun renameDataset(file: File, newName: String): File? {
+        if (isLoggingOffline) return null  // refuse while the writer is open
+        val safe = newName.trim()
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .takeIf { it.isNotEmpty() } ?: return null
+        val target = File(file.parentFile, if (safe.endsWith(".csv")) safe else "$safe.csv")
+        if (target.exists()) return null
+        return if (file.renameTo(target)) target else null
+    }
+
+    /** Delete a dataset. Returns true on success. */
+    fun deleteDataset(file: File): Boolean = file.delete()
+
+    // -- Spreadsheet-style editor support -------------------------------------
+
+    /**
+     * Load an entire CSV into memory for in-place editing. Caller should
+     * invoke from a background dispatcher; medium-sized logs (~MB) are fine
+     * but huge files will block.
+     */
+    fun loadDatasetFull(file: File): EditableDataset {
+        val rows = mutableListOf<List<String>>()
+        var headers: List<String> = emptyList()
+        try {
+            file.bufferedReader().use { br ->
+                val first = br.readLine() ?: return EditableDataset(file, emptyList(), emptyList())
+                headers = first.split(',').map { it.trim() }
+                var line = br.readLine()
+                while (line != null) {
+                    rows.add(line.split(','))
+                    line = br.readLine()
+                }
+            }
+        } catch (e: IOException) {
+            Log.w("DataRepository", "Full load failed for ${file.name}", e)
+        }
+        return EditableDataset(file, headers, rows)
+    }
+
+    /**
+     * Overwrite [file] with [headers] and [rows]. Writes via a temp file and
+     * atomic rename so a crash mid-write can't corrupt the original.
+     * Refuses while offline logging is open.
+     */
+    fun writeDataset(file: File, headers: List<String>, rows: List<List<String>>): Boolean {
+        if (isLoggingOffline) return false
+        return try {
+            val tmp = File(file.parentFile, "${file.nameWithoutExtension}.tmp.csv")
+            FileWriter(tmp).use { w ->
+                w.append(headers.joinToString(",")).append('\n')
+                rows.forEach { row -> w.append(row.joinToString(",")).append('\n') }
+            }
+            if (file.exists()) file.delete()
+            tmp.renameTo(file)
+        } catch (e: IOException) {
+            Log.e("DataRepository", "writeDataset ${file.name} failed", e); false
+        }
+    }
+
+    /**
+     * Save [rows] under a fresh file in the datasets directory. [baseName]
+     * may omit `.csv`; characters outside [A-Za-z0-9._-] are sanitised. If a
+     * file with that name already exists, a `_2`, `_3`, … suffix is appended.
+     * Returns the new file, or null on IO error.
+     */
+    fun writeDatasetAs(
+        baseName: String,
+        headers: List<String>,
+        rows: List<List<String>>,
+    ): File? {
+        val safe = baseName.trim()
+            .removeSuffix(".csv")
+            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+            .ifEmpty { "snippet_${getDateString()}" }
+        var target = File(datasetsDir(), "$safe.csv")
+        var n = 2
+        while (target.exists()) { target = File(datasetsDir(), "${safe}_$n.csv"); n++ }
+        return if (writeDataset(target, headers, rows)) target else null
+    }
+
+    /**
+     * Upload a single dataset to Edge Impulse tagged with [label]. When
+     * [deleteAfter] is true the file is removed on a successful 2xx response.
+     * Reports progress via the returned suspend result.
+     */
+    suspend fun uploadDataset(file: File, label: String, deleteAfter: Boolean): Result<Unit> {
+        return try {
+            val body = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("data", file.name,
+                    file.asRequestBody("text/csv".toMediaType()))
+                .build()
+            val req = Request.Builder()
+                .url("https://ingestion.edgeimpulse.com/api/training/files")
+                .header("x-api-key", apiKeyStore.get())
+                .header("x-label", label)
+                .post(body)
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    return Result.failure(IOException("HTTP ${resp.code}: ${resp.body?.string()}"))
+                }
+                if (deleteAfter) file.delete()
+                Result.success(Unit)
+            }
+        } catch (e: IOException) {
+            Result.failure(e)
         }
     }
 
@@ -329,7 +555,7 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
      * Upload a raw JPEG [imageBytes] to Edge Impulse ingestion as a training image.
      * [label] is the EI data label (e.g. "normal", "anomaly").
      */
-    fun uploadImage(imageBytes: ByteArray, label: String) {
+    suspend fun uploadImage(imageBytes: ByteArray, label: String): Boolean {
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
@@ -345,17 +571,17 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
             .post(multipart)
             .build()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val response = client.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    Log.e("DataRepository", "Image upload failed: ${response.body?.string()}")
-                } else {
-                    Log.d("DataRepository", "Image uploaded with label='$label'")
-                }
-            } catch (e: IOException) {
-                Log.e("DataRepository", "Image upload exception", e)
+        return try {
+            val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
+            if (!response.isSuccessful) {
+                Log.e("DataRepository", "Image upload failed: ${response.body?.string()}")
+            } else {
+                Log.d("DataRepository", "Image uploaded with label='$label'")
             }
+            response.isSuccessful
+        } catch (e: IOException) {
+            Log.e("DataRepository", "Image upload exception", e)
+            false
         }
     }
 

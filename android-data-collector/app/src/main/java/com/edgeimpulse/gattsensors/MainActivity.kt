@@ -27,6 +27,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -242,6 +244,12 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                         icon     = { Icon(Icons.Default.Watch, contentDescription = null) },
                         label    = { Text("WearOS") }
                     )
+                    NavigationBarItem(
+                        selected = selectedTab == 3,
+                        onClick  = { selectedTab = 3 },
+                        icon     = { Icon(Icons.Default.Folder, contentDescription = null) },
+                        label    = { Text("Datasets") }
+                    )
                 }
             }
         ) { padding ->
@@ -273,6 +281,7 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                             0 -> CollectScreen(viewModel, cameraHelper)
                             1 -> ZephyrBLEScreen(viewModel)
                             2 -> WearOSScreen(viewModel, cameraHelper)
+                            3 -> DatasetsScreen(viewModel)
                         }
                     }
                 }
@@ -297,6 +306,23 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     var label      by remember { mutableStateOf("") }
     var offlineOn  by remember { mutableStateOf(false) }
     var statusMsg  by remember { mutableStateOf("") }
+
+    // Auto-enable offline CSV logging whenever uploads can't reach Edge
+    // Impulse — either because no API key is configured, or the device is
+    // offline. The switch is locked on while that's true so the user can't
+    // accidentally drop samples on the floor.
+    val apiKey by viewModel.apiKeyStore.apiKey.collectAsState()
+    val online by rememberOnline()
+    val forceOffline = apiKey.isBlank() || !online
+    val forceReason = when {
+        apiKey.isBlank() && !online -> "No API key + no network"
+        apiKey.isBlank()            -> "No Edge Impulse API key"
+        !online                     -> "No network"
+        else                        -> null
+    }
+    LaunchedEffect(forceOffline) {
+        if (forceOffline && !offlineOn) offlineOn = true
+    }
 
     val sensorOptions = viewModel.collectSourceOptions
     var dropdownOpen   by remember { mutableStateOf(false) }
@@ -519,10 +545,25 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 color = MaterialTheme.colorScheme.primary)
         }
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(checked = offlineOn, onCheckedChange = { offlineOn = it })
-                Spacer(Modifier.width(10.dp))
-                Text("Log samples to CSV on device")
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked = offlineOn,
+                        onCheckedChange = { offlineOn = it },
+                        enabled = !forceOffline,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("Log samples to CSV on device")
+                }
+                if (forceOffline && forceReason != null) {
+                    Text(
+                        "Auto-enabled — $forceReason. Samples are stored " +
+                            "locally and can be uploaded once uploads work again.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(start = 52.dp, top = 2.dp),
+                    )
+                }
             }
         }
         item {
@@ -563,7 +604,8 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                     if (event == Lifecycle.Event.ON_RESUME) {
                         val nowGranted = hasCamPerm()
                         hasCameraPermission = nowGranted
-                        if (nowGranted) cameraHelper.bindToLifecycle(lifecycleOwner)
+                        // Preview rebind is handled by the AndroidView factory below;
+                        // trigger recompose so the AndroidView is created/shown.
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -574,23 +616,32 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
             ) { granted ->
                 hasCameraPermission = granted
-                if (granted) {
-                    cameraHelper.bindToLifecycle(lifecycleOwner)
-                } else {
+                if (!granted) {
                     statusMsg = if (!activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
-                        "Permission permanently denied \u2014 tap \"Open Settings\" below"
+                        "Permission permanently denied — tap \"Open Settings\" below"
                     else
                         "Camera permission denied"
                 }
             }
 
-            // If the system will never show the dialog again, send the user to Settings.
             val permanentlyDenied = !hasCameraPermission &&
                 !activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!hasCameraPermission) {
-                    // Grant / open-settings button \u2014 always enabled, no label needed
+                // Live viewfinder — only shown when permission is granted
+                if (hasCameraPermission) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PreviewView(ctx).also { pv ->
+                                pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                cameraHelper.bindToLifecycle(lifecycleOwner, pv.surfaceProvider)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                    )
+                } else {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
@@ -611,29 +662,33 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                         Text(if (permanentlyDenied) "Open Settings to grant camera" else "Grant camera permission")
                     }
                 }
-                // Capture button \u2014 only usable once permission is granted and a label is set
+
+                // Capture button — only usable once permission is granted and a label is set
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     enabled  = hasCameraPermission && label.isNotBlank(),
                     onClick  = {
-                        viewModel.captureAndUploadImage(cameraHelper, label)
-                        statusMsg = "Capturing image\u2026"
+                        statusMsg = "Capturing…"
+                        viewModel.captureAndUploadImage(cameraHelper, label) { ok, msg ->
+                            statusMsg = msg
+                        }
                     }
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Capture & upload image")
                 }
-                when {
-                    !hasCameraPermission -> Text(
+                if (!hasCameraPermission) {
+                    Text(
                         if (permanentlyDenied)
                             "Camera access was permanently denied. Open Settings and enable the Camera permission."
                         else
-                            "Grant camera permission to capture images.",
+                            "Grant camera permission to see the viewfinder and capture images.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    label.isBlank() -> Text(
+                } else if (label.isBlank()) {
+                    Text(
                         "Enter a label above to enable capture.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

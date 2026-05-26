@@ -34,6 +34,13 @@ class VoiceCommandManager(
     private val onStatus: (String) -> Unit = {},
     private val onTranscript: (String) -> Unit = {},
     private val onWake: () -> Unit = {},
+    /**
+     * Optional hook consulted the moment the wake word fires. Returning a
+     * non-null [VoiceCommand] short-circuits the STT step and starts that
+     * recording immediately — used by the “default action after wake
+     * word” setting.
+     */
+    private val defaultAction: () -> VoiceCommand? = { null },
 ) {
     private val main = Handler(Looper.getMainLooper())
 
@@ -82,8 +89,19 @@ class VoiceCommandManager(
 
     private fun handleWake() {
         main.post {
-            onStatus("Wake word detected; listening for command...")
             onWake()
+            // If the user has configured a default action, fire it now and
+            // skip the STT round-trip entirely.
+            val preset = defaultAction()
+            if (preset != null) {
+                onStatus("Wake word → default action: '${preset.label}' for ${preset.durationSeconds}s")
+                startRecording(preset)
+                // Resume wake-word listening after a short delay so the
+                // recorder has time to claim its own audio resources.
+                main.postDelayed({ kws?.start() }, 300L)
+                return@post
+            }
+            onStatus("Wake word detected; listening for command...")
             // SpeechRecognizer needs the mic, so pause KWS. Add a short delay
             // to let the OS fully release AudioRecord before SpeechRecognizer
             // tries to grab it (avoids ERROR_CLIENT / INSUFFICIENT_PERMISSIONS).

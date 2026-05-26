@@ -13,7 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -134,6 +136,16 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 viewModel   = viewModel,
                 onStatus    = { voiceStatus = it },
                 onTranscript = { voiceTranscript = it },
+                defaultAction = {
+                    val s = viewModel.voiceSettingsStore.get()
+                    if (s.enabled && s.label.isNotBlank()) {
+                        com.edgeimpulse.gattsensors.voice.VoiceCommand(
+                            durationSeconds = s.durationSec,
+                            label = s.label,
+                            raw = "<default-action>",
+                        )
+                    } else null
+                },
             )
         }
         val voiceEnabled by voiceManager.enabled.collectAsState()
@@ -173,11 +185,12 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── API-key settings dialog ─────────────────────────────────────────
+        // ── Settings dialog (API key + voice defaults) ─────────────────────
         if (showSettings) {
-            ApiKeyDialog(
-                apiKeyStore = viewModel.apiKeyStore,
-                onDismiss   = { showSettings = false }
+            SettingsDialog(
+                apiKeyStore        = viewModel.apiKeyStore,
+                voiceSettingsStore = viewModel.voiceSettingsStore,
+                onDismiss          = { showSettings = false }
             )
         }
 
@@ -321,12 +334,10 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     var mode       by remember { mutableIntStateOf(MODE_MULTI) }
 
     // Multi-stream toggles
+    var usePhone  by remember { mutableStateOf(true) }
     var useWear   by remember { mutableStateOf(true) }
     var useZephyr by remember { mutableStateOf(true) }
     var useCamera by remember { mutableStateOf(false) }
-    // Phone is always on in multi-mode (it's the baseline) — exposed as a
-    // disabled-on toggle for transparency.
-    val usePhone = true
 
     // Auto-enable offline CSV logging whenever uploads can't reach Edge
     // Impulse — either because no API key is configured, or the device is
@@ -555,8 +566,8 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             item {
                 ToggleRow(
                     "Phone SensorManager (accel, gyro, mag, light, pressure, GPS, …)",
-                    usePhone, enabled = false,
-                ) { /* always on */ }
+                    usePhone,
+                ) { usePhone = it }
             }
             item {
                 ToggleRow(
@@ -582,17 +593,48 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (hasCameraPermission) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    PreviewView(ctx).also { pv ->
-                                        pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                                        cameraHelper.bindToLifecycle(lifecycleOwner, pv.surfaceProvider)
+                            // `key(hasCameraPermission)` forces AndroidView's
+                            // factory to re-run if the user goes denied →
+                            // granted while the toggle stays on, so the
+                            // PreviewView (and the underlying CameraX bind)
+                            // are re-created with permission in hand.
+                            androidx.compose.runtime.key(hasCameraPermission) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        PreviewView(ctx).also { pv ->
+                                            pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                            cameraHelper.bindToLifecycle(lifecycleOwner, pv.surfaceProvider)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(220.dp),
+                                )
+                            }
+                            // Standalone single-image capture so the user can
+                            // grab a labelled photo without running a full
+                            // multi-stream session.
+                            Button(
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled  = label.isNotBlank() && !anyRunning,
+                                onClick  = {
+                                    statusMsg = "Capturing…"
+                                    viewModel.captureAndUploadImage(cameraHelper, label) { _, msg ->
+                                        statusMsg = msg
                                     }
                                 },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp),
-                            )
+                            ) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Capture & upload single image")
+                            }
+                            if (label.isBlank()) {
+                                Text(
+                                    "Enter a label above to enable single-image capture.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         } else {
                             Button(
                                 modifier = Modifier.fillMaxWidth(),
@@ -999,7 +1041,11 @@ fun ZephyrBLEScreen(viewModel: SensorViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
+fun SettingsDialog(
+    apiKeyStore: ApiKeyStore,
+    voiceSettingsStore: VoiceSettingsStore,
+    onDismiss: () -> Unit,
+) {
     val currentKey   by apiKeyStore.apiKey.collectAsState()
     var draft        by remember(currentKey) { mutableStateOf(currentKey) }
     var showKey      by remember { mutableStateOf(false) }
@@ -1007,11 +1053,23 @@ fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
     val buildTimeKey = runCatching { BuildConfig.EI_API_KEY }.getOrElse { "" }
     val isUsingBuild = !hasOverride && buildTimeKey.isNotBlank()
 
+    val voiceState by voiceSettingsStore.state.collectAsState()
+    var voiceEnabled    by remember(voiceState) { mutableStateOf(voiceState.enabled) }
+    var voiceLabel      by remember(voiceState) { mutableStateOf(voiceState.label) }
+    var voiceDurationS  by remember(voiceState) { mutableStateOf(voiceState.durationSec.toString()) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edge Impulse API key", fontWeight = FontWeight.Bold) },
+        title = { Text("Settings", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                Text("Edge Impulse API key",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+
                 // Status chip
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1073,11 +1131,61 @@ fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
                         Text("Clear override — revert to build-time key")
                     }
                 }
+
+                HorizontalDivider()
+
+                Text("Voice control — default action after wake word",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "When enabled, saying \"hey android\" skips the spoken " +
+                    "command and immediately records a labelled sample for " +
+                    "the configured duration. Leave disabled to use the " +
+                    "default \"record N seconds as <label>\" voice commands.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = voiceEnabled, onCheckedChange = { voiceEnabled = it })
+                    Spacer(Modifier.width(8.dp))
+                    Text("Default action enabled")
+                }
+                OutlinedTextField(
+                    value         = voiceLabel,
+                    onValueChange = { voiceLabel = it },
+                    label         = { Text("Default label") },
+                    placeholder   = { Text("e.g. quick-capture") },
+                    singleLine    = true,
+                    enabled       = voiceEnabled,
+                    modifier      = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value         = voiceDurationS,
+                    onValueChange = { voiceDurationS = it.filter(Char::isDigit) },
+                    label         = { Text("Duration (seconds)") },
+                    placeholder   = { Text("5") },
+                    singleLine    = true,
+                    enabled       = voiceEnabled,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier      = Modifier.fillMaxWidth(),
+                )
+                if (voiceEnabled && voiceLabel.isBlank()) {
+                    Text(
+                        "Set a label so the recording can be uploaded with a class name.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         },
         confirmButton = {
             Button(onClick = {
                 apiKeyStore.set(draft)
+                voiceSettingsStore.update(
+                    enabled = voiceEnabled,
+                    label = voiceLabel,
+                    durationSec = voiceDurationS.toIntOrNull() ?: 5,
+                )
                 onDismiss()
             }) { Text("Save") }
         },
@@ -1174,8 +1282,7 @@ private fun ToggleRow(
 ) {
     Row(modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically) {
-        Switch(checked = checked && enabled, enabled = enabled,
-               onCheckedChange = onChange)
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onChange)
         Spacer(Modifier.width(8.dp))
         Text(label,
             color = if (enabled) MaterialTheme.colorScheme.onSurface

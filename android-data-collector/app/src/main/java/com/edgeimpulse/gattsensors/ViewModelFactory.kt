@@ -14,6 +14,7 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
                 application.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             val bluetoothAdapter = bluetoothManager.adapter
             val apiKeyStore         = ApiKeyStore(application)
+            val voiceSettingsStore  = VoiceSettingsStore(application)
             val deviceId            = Settings.Secure.getString(
                 application.contentResolver, Settings.Secure.ANDROID_ID
             ) ?: "android-ei-device"
@@ -29,7 +30,8 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
             return SensorViewModel(
                 application, collector, gattServerManager,
                 edgeImpulseManager, dataRepository, zephyrBLEClient,
-                wearOSClient, apiKeyStore, locationCollector, audioRecorder
+                wearOSClient, apiKeyStore, voiceSettingsStore,
+                locationCollector, audioRecorder
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

@@ -18,6 +18,7 @@ class SensorViewModel(
     val zephyrBLEClient: ZephyrBLEClient,
     val wearOSClient: WearOSClient,
     val apiKeyStore: ApiKeyStore,
+    val voiceSettingsStore: VoiceSettingsStore,
     private val locationCollector: LocationCollector,
     private val audioRecorder: AudioFileRecorder,
 ) : AndroidViewModel(application) {

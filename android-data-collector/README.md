@@ -83,7 +83,29 @@ Or sideload the pre-built APK from [`sample-apk/`](sample-apk/).
 3. Tap **Capture & upload image** — the rear camera fires, and the JPEG is uploaded to your project with that label.
 4. Repeat to build an image dataset.
 
-### Step 6 — Offline / field logging
+### Step 6 — Voice-command recording (optional)
+
+A built-in wake-word engine lets you trigger recordings hands-free.
+**Voice control is disabled by default** — opt in from the Settings dialog (gear icon in the top-right).
+
+1. Tap the **gear icon** → **Voice control (wake word)** section.
+2. Toggle **Voice control enabled** on.
+3. Adjust the **KWS detection threshold** slider (default 0.80, range 0.30–0.99).  
+   Lower = more sensitive (more false wakes); higher = stricter.
+4. *(Optional)* Enable **Default action after wake word**:  
+   Set a **label** and **duration (seconds)**. Saying "hey android" will then immediately record a sample for that label without waiting for a spoken command.
+5. Tap **Save**. The app requests `RECORD_AUDIO` if needed and begins listening.
+
+When no default action is configured, say:
+
+> *"Record five seconds as walking"*  
+> *"Capture three seconds as idle"*
+
+The on-device STT parses `<duration> seconds as <label>` and starts the recording automatically.
+
+The microphone icon in the top-right shows wake-word listener status (green = on).
+
+### Step 7 — Offline / field logging
 
 Use this when you have no data connection (e.g. outdoors, factory floor):
 
@@ -91,7 +113,7 @@ Use this when you have no data connection (e.g. outdoors, factory floor):
 2. Tap **Start** / **Stop** as normal — samples accumulate in a local CSV file.
 3. When back online, enter a label and tap **Upload stored CSV to Edge Impulse** to batch-upload everything.
 
-### Step 7 — Verify data in Edge Impulse Studio
+### Step 8 — Verify data in Edge Impulse Studio
 
 1. Open your project in [studio.edgeimpulse.com](https://studio.edgeimpulse.com).
 2. Go to **Data acquisition** — your uploaded samples appear with their labels, timestamps, and sensor axes.
@@ -152,8 +174,8 @@ The app requests these on first launch — all are optional (none blocks the UI)
 | Permission | Used by |
 |---|---|
 | `CAMERA` | Capture & upload image |
-| `RECORD_AUDIO` | Future: speech/audio collection |
-| `ACCESS_FINE_LOCATION` | BLE scanning (Android < 12) |
+| `RECORD_AUDIO` | Wake-word listener (KWS) + STT voice commands |
+| `ACCESS_FINE_LOCATION` | BLE scanning (Android < 12) / GPS logging |
 | `BODY_SENSORS` | PPG / heart rate |
 | `BLUETOOTH_SCAN/CONNECT` | Zephyr BLE (Android 12+) |
 
@@ -174,6 +196,8 @@ flowchart TD
     VM --> ZB["ZephyrBLEClient\nBLE → Thingy:53"]
     VM --> CH["CameraHelper\nCameraX JPEG"]
     VM --> EM["EdgeImpulseManager\nremote-mgmt WebSocket"]
+    VM --> VCM["VoiceCommandManager\nKWS + on-device STT"]
+    VCM --> VM
     SC --> DR["DataRepository\nCSV log · HTTPS ingestion · image upload"]
     ZB --> DR
     CH --> DR
@@ -215,7 +239,7 @@ flowchart TD
 
 | File | Purpose |
 |---|---|
-| `MainActivity.kt` | Compose UI — 3 nav destinations |
+| `MainActivity.kt` | Compose UI — 3 nav destinations + Settings dialog |
 | `SensorViewModel.kt` | Single ViewModel for all tabs |
 | `SensorCollector.kt` | Android Sensor API → `SensorData` flow |
 | `CameraHelper.kt` | CameraX → JPEG bytes |
@@ -225,6 +249,12 @@ flowchart TD
 | `GattProfile.kt` | UUIDs shared with firmware |
 | `GattServerManager.kt` | Phone GATT server (WearOS relay) |
 | `ViewModelFactory.kt` | Dependency wiring |
+| `ApiKeyStore.kt` | Persist API key in SharedPreferences |
+| `VoiceSettingsStore.kt` | Persist voice-control settings (enabled, threshold, default action) |
+| `voice/KwsEngine.kt` | Continuous wake-word spotter ("hey android") |
+| `voice/OnDeviceStt.kt` | Android SpeechRecognizer wrapper (6 s cap) |
+| `voice/VoiceCommandParser.kt` | Parse "record N seconds as label" |
+| `voice/VoiceCommandManager.kt` | Orchestrate KWS → STT → recording pipeline |
 
 ---
 

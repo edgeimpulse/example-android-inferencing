@@ -115,8 +115,8 @@ The **Zephyr BLE** tab connects to a Nordic Thingy:53 running the companion [`ei
 ### WearOS sensor relay
 
 
+<video src="https://github.com/user-attachments/assets/bf1e00fa-0bdd-406b-95e1-28653e0bc14a" controls width="720"></video>
 
-https://github.com/user-attachments/assets/bf1e00fa-0bdd-406b-95e1-28653e0bc14a
 <img width="570" height="539" alt="wearos data" src="https://github.com/user-attachments/assets/2ea5a43d-a65a-4db4-a7ce-91f46cfcd11a" />
 
 

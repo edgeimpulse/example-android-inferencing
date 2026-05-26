@@ -41,6 +41,12 @@ class VoiceCommandManager(
      * word” setting.
      */
     private val defaultAction: () -> VoiceCommand? = { null },
+    /**
+     * Provides the current KWS detection threshold (0..1). Re-read every
+     * time [enable] is called so the user can tune sensitivity in the
+     * Settings dialog without restarting the app.
+     */
+    private val thresholdProvider: () -> Float = { 0.80f },
 ) {
     private val main = Handler(Looper.getMainLooper())
 
@@ -68,7 +74,11 @@ class VoiceCommandManager(
             onStatus("KWS native lib not loaded")
             return false
         }
-        val engine = KwsEngine(scope = scope, onWake = ::handleWake)
+        val engine = KwsEngine(
+            scope     = scope,
+            threshold = thresholdProvider().coerceIn(0.05f, 0.99f),
+            onWake    = ::handleWake,
+        )
         if (!engine.start()) {
             onStatus("Failed to start KWS")
             return false

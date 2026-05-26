@@ -138,14 +138,15 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 onTranscript = { voiceTranscript = it },
                 defaultAction = {
                     val s = viewModel.voiceSettingsStore.get()
-                    if (s.enabled && s.label.isNotBlank()) {
+                    if (s.defaultActionEnabled && s.defaultActionLabel.isNotBlank()) {
                         com.edgeimpulse.gattsensors.voice.VoiceCommand(
-                            durationSeconds = s.durationSec,
-                            label = s.label,
+                            durationSeconds = s.defaultActionDurationSec,
+                            label = s.defaultActionLabel,
                             raw = "<default-action>",
                         )
                     } else null
                 },
+                thresholdProvider = { viewModel.voiceSettingsStore.get().kwsThreshold },
             )
         }
         val voiceEnabled by voiceManager.enabled.collectAsState()
@@ -156,11 +157,12 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             else voiceStatus = "RECORD_AUDIO permission denied"
         }
 
-        // Always-on by default: kick off wake-word listening as soon as the UI
-        // mounts. Request RECORD_AUDIO if we don't already have it; otherwise
-        // enable straight away. Continuous loop — KwsEngine re-arms itself
-        // after every wake / capture cycle.
+        // Wake-word listening is opt-in: only kick off if the user has
+        // toggled "voice control enabled" in Settings. We still request
+        // RECORD_AUDIO up-front so toggling it on later doesn't need a
+        // round-trip through the permission dialog.
         LaunchedEffect(Unit) {
+            if (!viewModel.voiceSettingsStore.get().voiceControlEnabled) return@LaunchedEffect
             val granted = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
@@ -168,15 +170,39 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             else micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
 
+        // React to changes in the Settings dialog: enable / disable KWS
+        // when the user toggles voice control, and rebuild the engine
+        // (so it picks up a new threshold) when settings change while
+        // listening is on.
+        val voiceSettings by viewModel.voiceSettingsStore.state.collectAsState()
+        LaunchedEffect(voiceSettings.voiceControlEnabled, voiceSettings.kwsThreshold) {
+            if (voiceSettings.voiceControlEnabled) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    // Restart so the new threshold takes effect.
+                    voiceManager.disable()
+                    voiceManager.enable()
+                } else {
+                    micPermLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            } else {
+                voiceManager.disable()
+            }
+        }
+
         DisposableEffect(Unit) {
             // Let audio capture pause the wake-word listener for the duration
             // of a manual mic recording, then re-arm KWS automatically.
             viewModel.onMicAcquire = { voiceManager.disable() }
             viewModel.onMicRelease = {
-                val granted = ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
-                if (granted) voiceManager.enable()
+                if (viewModel.voiceSettingsStore.get().voiceControlEnabled) {
+                    val granted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) voiceManager.enable()
+                }
             }
             onDispose {
                 viewModel.onMicAcquire = null
@@ -1054,9 +1080,11 @@ fun SettingsDialog(
     val isUsingBuild = !hasOverride && buildTimeKey.isNotBlank()
 
     val voiceState by voiceSettingsStore.state.collectAsState()
-    var voiceEnabled    by remember(voiceState) { mutableStateOf(voiceState.enabled) }
-    var voiceLabel      by remember(voiceState) { mutableStateOf(voiceState.label) }
-    var voiceDurationS  by remember(voiceState) { mutableStateOf(voiceState.durationSec.toString()) }
+    var voiceControlEnabled by remember(voiceState) { mutableStateOf(voiceState.voiceControlEnabled) }
+    var kwsThreshold        by remember(voiceState) { mutableStateOf(voiceState.kwsThreshold) }
+    var voiceEnabled        by remember(voiceState) { mutableStateOf(voiceState.defaultActionEnabled) }
+    var voiceLabel          by remember(voiceState) { mutableStateOf(voiceState.defaultActionLabel) }
+    var voiceDurationS      by remember(voiceState) { mutableStateOf(voiceState.defaultActionDurationSec.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1134,7 +1162,45 @@ fun SettingsDialog(
 
                 HorizontalDivider()
 
-                Text("Voice control — default action after wake word",
+                Text("Voice control (wake word)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Listen continuously for \"hey android\" and react to " +
+                    "spoken commands. Disabled by default — the mic is only " +
+                    "claimed while this is on.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(
+                        checked         = voiceControlEnabled,
+                        onCheckedChange = { voiceControlEnabled = it },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Voice control enabled")
+                }
+                Text(
+                    "Wake-word detection threshold: %.2f".format(kwsThreshold),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Slider(
+                    value          = kwsThreshold,
+                    onValueChange  = { kwsThreshold = it },
+                    valueRange     = 0.30f..0.99f,
+                    steps          = 68, // 0.30 → 0.99 in 0.01 increments
+                    enabled        = voiceControlEnabled,
+                )
+                Text(
+                    "Lower = more sensitive (more false wakes); higher = " +
+                    "stricter. Default 0.80. Applied next time voice " +
+                    "control is enabled.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(Modifier.height(4.dp))
+                Text("Default action after wake word",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary)
                 Text(
@@ -1146,7 +1212,11 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = voiceEnabled, onCheckedChange = { voiceEnabled = it })
+                    Switch(
+                        checked         = voiceEnabled,
+                        onCheckedChange = { voiceEnabled = it },
+                        enabled         = voiceControlEnabled,
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text("Default action enabled")
                 }
@@ -1156,7 +1226,7 @@ fun SettingsDialog(
                     label         = { Text("Default label") },
                     placeholder   = { Text("e.g. quick-capture") },
                     singleLine    = true,
-                    enabled       = voiceEnabled,
+                    enabled       = voiceControlEnabled && voiceEnabled,
                     modifier      = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -1165,11 +1235,11 @@ fun SettingsDialog(
                     label         = { Text("Duration (seconds)") },
                     placeholder   = { Text("5") },
                     singleLine    = true,
-                    enabled       = voiceEnabled,
+                    enabled       = voiceControlEnabled && voiceEnabled,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier      = Modifier.fillMaxWidth(),
                 )
-                if (voiceEnabled && voiceLabel.isBlank()) {
+                if (voiceControlEnabled && voiceEnabled && voiceLabel.isBlank()) {
                     Text(
                         "Set a label so the recording can be uploaded with a class name.",
                         style = MaterialTheme.typography.labelSmall,
@@ -1182,9 +1252,11 @@ fun SettingsDialog(
             Button(onClick = {
                 apiKeyStore.set(draft)
                 voiceSettingsStore.update(
-                    enabled = voiceEnabled,
-                    label = voiceLabel,
-                    durationSec = voiceDurationS.toIntOrNull() ?: 5,
+                    voiceControlEnabled      = voiceControlEnabled,
+                    kwsThreshold             = kwsThreshold,
+                    defaultActionEnabled     = voiceEnabled,
+                    defaultActionLabel       = voiceLabel,
+                    defaultActionDurationSec = voiceDurationS.toIntOrNull() ?: 5,
                 )
                 onDismiss()
             }) { Text("Save") }

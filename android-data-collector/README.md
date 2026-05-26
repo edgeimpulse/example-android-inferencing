@@ -114,6 +114,12 @@ The **Zephyr BLE** tab connects to a Nordic Thingy:53 running the companion [`ei
 
 ### WearOS sensor relay
 
+
+
+https://github.com/user-attachments/assets/bf1e00fa-0bdd-406b-95e1-28653e0bc14a
+<img width="570" height="539" alt="wearos data" src="https://github.com/user-attachments/assets/2ea5a43d-a65a-4db4-a7ce-91f46cfcd11a" />
+
+
 The **WearOS** tab relays heart rate, accelerometer, and GPS from a paired Wear OS watch via the Wearable Data Layer API. Pair your watch, install the companion wearable module from [`/wearosdatalogger`](wearosdatalogger), and data flows through the same upload pipeline.
 
 ---

@@ -267,35 +267,13 @@ android skills add --skill compose-migration # install one
 
 Then prompt the agent (`@compose-migration` in Android Studio, or just *“migrate this screen to Compose”* with any agent) and it will pull in the skill's full instructions automatically.
 
-You can also package your own conventions — e.g. an `edge-impulse-data-collection` skill that teaches the agent how to add a new sensor source to this app. Drop a `SKILL.md` under `.skills/<your-skill-name>/` at the repo root:
+You can also package your own conventions — this repo ships one. The skill at [`.skills/edge-impulse-data-collection/SKILL.md`](.skills/edge-impulse-data-collection/SKILL.md) teaches a compatible agent how to add a new sensor source to this app end-to-end (collector → ViewModel option → routing → `DataRepository` upload → permissions → tests). Any agent that supports the agentskills spec will load it automatically when you ask things like:
 
-```markdown
----
-name: edge-impulse-data-collection
-description: Add a new sensor source to the Edge Impulse Data Collector
-  Android app. Use this when the user asks to capture data from a new
-  sensor (e.g. barometer, magnetometer, custom BLE peripheral) and
-  upload it to Edge Impulse.
-metadata:
-  version: "1.0"
----
+> *"Add a barometer source to the collector and upload it to my EI project."*
+> *"Wire up a new BLE characteristic from my Zephyr firmware as a data source."*
+> *"Add a magnetometer option to the Collect screen."*
 
-# Adding a new sensor source
-
-1. Extend `SensorCollector.kt` (or create a sibling collector class) that
-   emits `SensorData` on a `MutableSharedFlow`.
-2. Add a new entry to `SensorViewModel.collectSourceOptions` so it shows
-   in the "Sensor" dropdown on the Collect screen.
-3. Handle the new option in `SensorViewModel.startSensorForDuration`.
-4. Uploads go through `DataRepository.uploadStoredCsvFiles` (offline) or
-   the existing ingestion path — do NOT add a new HTTP client.
-5. Add a unit test in `app/src/test/.../SensorCollectorTest.kt`.
-
-Permissions go in `app/src/main/AndroidManifest.xml` and are requested
-in `MainActivity.optionalPermissions()`.
-```
-
-After committing the skill, any compatible agent in the workspace will pick it up when you say *“add a barometer source to the collector”*.
+In Android Studio you can also invoke it explicitly with `@edge-impulse-data-collection`.
 
 ### Tip — Claude Code / `AGENTS.md`
 

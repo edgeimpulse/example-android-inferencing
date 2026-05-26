@@ -8,12 +8,23 @@ An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edge
 
 ---
 
-## Screenshots
+## Overview
 
 <img width="1948" height="1478" alt="android data collector diagram" src="https://github.com/user-attachments/assets/b3c6455c-9d41-4432-8a0f-219157ebbd22" />
 
+*System architecture: phone sensors, Zephyr BLE node, Wear OS watch, and USB-OTG devices all feed into the Android hub, which logs data locally and uploads to Edge Impulse.*
 
-https://github.com/user-attachments/assets/db2ade2c-ef3d-49ef-b849-49de9445de4d
+---
+
+## Demo
+
+<video src="https://github.com/user-attachments/assets/db2ade2c-ef3d-49ef-b849-49de9445de4d" controls width="720"></video>
+
+*Collecting accelerometer data on the phone and uploading it live to Edge Impulse.*
+
+---
+
+## Screenshots
 
 | Collect | Zephyr BLE | WearOS |
 |:---:|:---:|:---:|
@@ -144,32 +155,24 @@ The app requests these on first launch — all are optional (none blocks the UI)
 
 ## Architecture
 
-```
-            ┌────────────────────────────────────┐
-            │            MainActivity            │
-            │  ┌────────┐ ┌──────────┐ ┌───────┐ │
-            │  │Collect │ │ZephyrBLE │ │WearOS │ │
-            │  └────────┘ └──────────┘ └───────┘ │
-            └──────────────┬─────────────────────┘
-                           │
-                  ┌────────▼─────────┐
-                  │  SensorViewModel │
-                  └─┬───┬───┬───┬────┘
-                    │   │   │   │
-       ┌────────────┘   │   │   └────────────────┐
-       │   ┌────────────┘   └───────────────┐    │
-       ▼   ▼                                ▼    ▼
- SensorCollector   ZephyrBLEClient   CameraHelper  EdgeImpulseManager
- (phone IMU/PPG)   (BLE central →    (CameraX        (remote-mgmt
-                    Thingy:53)        JPEG)           WebSocket)
-       │               │                │              │
-       └──────┬────────┴────────┬───────┘              │
-              │                 │                      │
-              ▼                 ▼                      ▼
-        DataRepository (CSV log + HTTPS ingestion + image upload)
-              │
-              ▼
-   Edge Impulse ingestion + remote-mgmt APIs
+```mermaid
+flowchart TD
+    subgraph UI["MainActivity (Compose)"]
+        direction LR
+        C[Collect]
+        Z[ZephyrBLE]
+        W[WearOS]
+    end
+    UI --> VM[SensorViewModel]
+    VM --> SC["SensorCollector\nphone IMU / PPG"]
+    VM --> ZB["ZephyrBLEClient\nBLE → Thingy:53"]
+    VM --> CH["CameraHelper\nCameraX JPEG"]
+    VM --> EM["EdgeImpulseManager\nremote-mgmt WebSocket"]
+    SC --> DR["DataRepository\nCSV log · HTTPS ingestion · image upload"]
+    ZB --> DR
+    CH --> DR
+    EM --> EI
+    DR --> EI["Edge Impulse APIs\ningestion + remote-mgmt"]
 ```
 
 ### Data flows

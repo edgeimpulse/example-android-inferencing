@@ -291,21 +291,42 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
 }
 
 // =============================================================================
-// PRIMARY: Collect screen  (phone sensors + camera + EI upload)
+// PRIMARY: Collect screen
+// Unified multi-stream recorder. Pick label + duration, toggle the streams
+// you want (phone SensorManager, Wear OS watch, Nesso N1 BLE, camera
+// snapshot) and hit Start. A single-source mode is also available for
+// quick one-sensor captures and for sources that aren't part of the
+// unified flow (GPS, Microphone).
 // =============================================================================
+
+private const val MODE_MULTI  = 0
+private const val MODE_SINGLE = 1
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
     val context = LocalContext.current
-    val sensorData  by viewModel.sensorData.collectAsState()
-    val isRunning   by viewModel.isCollecting.collectAsState()
-    val eiConnected by viewModel.eiConnected.collectAsState()
-    val eiError     by viewModel.eiConnectionError.collectAsState()
+    val sensorData       by viewModel.sensorData.collectAsState()
+    val isRunning        by viewModel.isCollecting.collectAsState()
+    val multiRecording   by viewModel.multiRecording.collectAsState()
+    val eiConnected      by viewModel.eiConnected.collectAsState()
+    val eiError          by viewModel.eiConnectionError.collectAsState()
+    val wearNode         by viewModel.wearNode.collectAsState()
+    val wearCount        by viewModel.wearSampleCount.collectAsState()
+    val zephyrConnected  by viewModel.zephyrConnected.collectAsState()
 
     var label      by remember { mutableStateOf("") }
     var offlineOn  by remember { mutableStateOf(false) }
     var statusMsg  by remember { mutableStateOf("") }
+    var mode       by remember { mutableIntStateOf(MODE_MULTI) }
+
+    // Multi-stream toggles
+    var useWear   by remember { mutableStateOf(true) }
+    var useZephyr by remember { mutableStateOf(true) }
+    var useCamera by remember { mutableStateOf(false) }
+    // Phone is always on in multi-mode (it's the baseline) — exposed as a
+    // disabled-on toggle for transparency.
+    val usePhone = true
 
     // Auto-enable offline CSV logging whenever uploads can't reach Edge
     // Impulse — either because no API key is configured, or the device is
@@ -333,12 +354,43 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
         ActivityResultContracts.RequestPermission()
     ) { /* state read directly via ContextCompat at click time */ }
 
+    // Camera permission state — re-checked on every resume so changes made in
+    // system Settings flow back into the UI.
+    val activity = context as android.app.Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
+    fun hasCamPerm() = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+    var hasCameraPermission by remember { mutableStateOf(hasCamPerm()) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) hasCameraPermission = hasCamPerm()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasCameraPermission = granted
+        if (!granted) {
+            statusMsg = if (!activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
+                "Permission permanently denied — tap \"Open Settings\" below"
+            else
+                "Camera permission denied"
+        }
+    }
+    val cameraPermanentlyDenied = !hasCameraPermission &&
+        !activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
+
     // Duration state
     val durationPresets = listOf(1, 2, 10, 20)
     var sliderValue      by remember { mutableFloatStateOf(2f) }
     var customDuration   by remember { mutableStateOf("") }  // for > 100 s
     val effectiveDurationSec: Int = customDuration.toIntOrNull()?.takeIf { it > 0 }
         ?: sliderValue.toInt().coerceAtLeast(1)
+
+    val anyRunning = isRunning || multiRecording
 
     LazyColumn(
         modifier = Modifier
@@ -383,35 +435,51 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── Section: Sensor picker ─────────────────────────────────────────
-        item {
-            Text("Data source", style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary)
-        }
-        item {
-            ExposedDropdownMenuBox(expanded = dropdownOpen, onExpandedChange = { dropdownOpen = it }) {
-                OutlinedTextField(
-                    readOnly      = true,
-                    value         = selectedSensor,
-                    onValueChange = {},
-                    label         = { Text("Sensor") },
-                    trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownOpen) },
-                    modifier      = Modifier.fillMaxWidth().menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded        = dropdownOpen,
-                    onDismissRequest = { dropdownOpen = false }
-                ) {
-                    sensorOptions.forEach { s ->
-                        DropdownMenuItem(text = { Text(s) }, onClick = {
-                            selectedSensor = s; dropdownOpen = false
-                        })
+        // ── External-device status (only when something is paired) ──────────
+        if (wearNode != null || zephyrConnected) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Paired devices", style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary)
+                        if (wearNode != null) {
+                            SourceRow(
+                                icon = Icons.Default.Watch,
+                                title = "Wear OS: $wearNode",
+                                subtitle = "Samples received: $wearCount",
+                                ok = true,
+                            )
+                        }
+                        if (zephyrConnected) {
+                            SourceRow(
+                                icon = Icons.Default.Bluetooth,
+                                title = "Nesso N1: connected",
+                                subtitle = "Streaming IMU over BLE",
+                                ok = true,
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // ── Section: Label ──────────────────────────────────────────────────
+        // ── Mode toggle ─────────────────────────────────────────────────────
+        item {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = mode == MODE_MULTI,
+                    onClick  = { mode = MODE_MULTI },
+                    shape    = SegmentedButtonDefaults.itemShape(0, 2),
+                ) { Text("Multi-stream") }
+                SegmentedButton(
+                    selected = mode == MODE_SINGLE,
+                    onClick  = { mode = MODE_SINGLE },
+                    shape    = SegmentedButtonDefaults.itemShape(1, 2),
+                ) { Text("Single source") }
+            }
+        }
+
+        // ── Label + duration (shared by both modes) ─────────────────────────
         item {
             OutlinedTextField(
                 value         = label,
@@ -422,15 +490,12 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                 modifier      = Modifier.fillMaxWidth()
             )
         }
-
-        // ── Section: Duration ───────────────────────────────────────────────
         item {
             HorizontalDivider()
             Text("Sample duration", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
         }
         item {
-            // Quick-pick chips
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 durationPresets.forEach { sec ->
                     FilterChip(
@@ -442,7 +507,6 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
         item {
-            // Slider 1–100 s
             Column {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -469,7 +533,6 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
         item {
-            // Extended duration (> 100 s)
             OutlinedTextField(
                 value         = customDuration,
                 onValueChange = { customDuration = it },
@@ -482,63 +545,111 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             )
         }
 
-        // ── Section: Collection controls ────────────────────────────────────────
-        item {
-            HorizontalDivider()
-            Text("Collection", style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary)
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    enabled  = !isRunning && label.isNotBlank(),
-                    onClick  = {
-                        // Audio capture needs to upload under the current label.
-                        viewModel.lastLabel = label
-                        // GPS needs runtime location permission — prompt if missing.
-                        if (selectedSensor == "GPS (Location)") {
-                            val ok = ContextCompat.checkSelfPermission(
-                                context, Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-                            if (!ok) {
-                                locationPermLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                                statusMsg = "Grant location permission and tap Start again."
-                                return@Button
+        // ── Mode-specific content ───────────────────────────────────────────
+        if (mode == MODE_MULTI) {
+            item {
+                HorizontalDivider()
+                Text("Streams", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+            }
+            item {
+                ToggleRow(
+                    "Phone SensorManager (accel, gyro, mag, light, pressure, GPS, …)",
+                    usePhone, enabled = false,
+                ) { /* always on */ }
+            }
+            item {
+                ToggleRow(
+                    if (wearNode != null) "Wear OS watch (accel, gyro, heart rate)"
+                    else "Wear OS watch — open the WearOS tab to pair",
+                    useWear, enabled = wearNode != null,
+                ) { useWear = it }
+            }
+            item {
+                ToggleRow(
+                    if (zephyrConnected) "Nesso N1 IMU (BLE)"
+                    else "Nesso N1 IMU — open the Zephyr BLE tab to connect",
+                    useZephyr, enabled = zephyrConnected,
+                ) { useZephyr = it }
+            }
+            item {
+                ToggleRow("Camera snapshot at session start",
+                    useCamera, enabled = true) { useCamera = it }
+            }
+
+            // Camera viewfinder + permission flow (only when Camera toggle on)
+            if (useCamera) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (hasCameraPermission) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    PreviewView(ctx).also { pv ->
+                                        pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                        cameraHelper.bindToLifecycle(lifecycleOwner, pv.surfaceProvider)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp),
+                            )
+                        } else {
+                            Button(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = {
+                                    if (cameraPermanentlyDenied) {
+                                        context.startActivity(
+                                            Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = Uri.fromParts("package", context.packageName, null)
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                        )
+                                    } else {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.NoPhotography, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (cameraPermanentlyDenied) "Open Settings to grant camera"
+                                     else "Grant camera permission")
                             }
                         }
-                        if (offlineOn) viewModel.startOfflineLogging()
-                        viewModel.startSensorForDuration(
-                            selectedSensor,
-                            effectiveDurationSec * 1000L
-                        )
-                        statusMsg = "Collecting ${selectedSensor} for ${effectiveDurationSec}s…"
                     }
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Start (${effectiveDurationSec}s)")
                 }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    colors   = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary
-                    ),
-                    enabled  = isRunning,
-                    onClick  = {
-                        viewModel.stopSensor()
-                        if (offlineOn) viewModel.stopOfflineLogging()
-                        statusMsg = "Stopped."
+            }
+        } else {
+            // Single-source mode — sensor dropdown
+            item {
+                HorizontalDivider()
+                Text("Data source", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+            }
+            item {
+                ExposedDropdownMenuBox(expanded = dropdownOpen, onExpandedChange = { dropdownOpen = it }) {
+                    OutlinedTextField(
+                        readOnly      = true,
+                        value         = selectedSensor,
+                        onValueChange = {},
+                        label         = { Text("Sensor") },
+                        trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownOpen) },
+                        modifier      = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded        = dropdownOpen,
+                        onDismissRequest = { dropdownOpen = false }
+                    ) {
+                        sensorOptions.forEach { s ->
+                            DropdownMenuItem(text = { Text(s) }, onClick = {
+                                selectedSensor = s; dropdownOpen = false
+                            })
+                        }
                     }
-                ) {
-                    Icon(Icons.Default.Stop, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Stop")
                 }
             }
         }
 
-        // ── Section: Offline CSV toggle + upload ───────────────────────────────
+        // ── Offline CSV switch (shared) ─────────────────────────────────────
         item {
             HorizontalDivider()
             Text("Offline logging", style = MaterialTheme.typography.labelLarge,
@@ -581,122 +692,89 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── Section: Camera ─────────────────────────────────────────────────
+        // ── Start / Stop ────────────────────────────────────────────────────
         item {
             HorizontalDivider()
-            Text("Camera", style = MaterialTheme.typography.labelLarge,
+            Text("Capture", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
         }
         item {
-            val context = LocalContext.current
-            val activity = context as android.app.Activity
-            val lifecycleOwner = LocalLifecycleOwner.current
-
-            fun hasCamPerm() = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-
-            var hasCameraPermission by remember { mutableStateOf(hasCamPerm()) }
-
-            // Re-check on every resume so the UI reflects changes made in system Settings.
-            DisposableEffect(lifecycleOwner) {
-                val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) {
-                        val nowGranted = hasCamPerm()
-                        hasCameraPermission = nowGranted
-                        // Preview rebind is handled by the AndroidView factory below;
-                        // trigger recompose so the AndroidView is created/shown.
-                    }
-                }
-                lifecycleOwner.lifecycle.addObserver(observer)
-                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-            }
-
-            val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-            ) { granted ->
-                hasCameraPermission = granted
-                if (!granted) {
-                    statusMsg = if (!activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
-                        "Permission permanently denied — tap \"Open Settings\" below"
-                    else
-                        "Camera permission denied"
-                }
-            }
-
-            val permanentlyDenied = !hasCameraPermission &&
-                !activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Live viewfinder — only shown when permission is granted
-                if (hasCameraPermission) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PreviewView(ctx).also { pv ->
-                                pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                                cameraHelper.bindToLifecycle(lifecycleOwner, pv.surfaceProvider)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp),
-                    )
-                } else {
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            if (permanentlyDenied) {
-                                context.startActivity(
-                                    Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                )
-                            } else {
-                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.NoPhotography, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (permanentlyDenied) "Open Settings to grant camera" else "Grant camera permission")
-                    }
-                }
-
-                // Capture button — only usable once permission is granted and a label is set
+            if (mode == MODE_MULTI) {
+                val canStart = !anyRunning && label.isNotBlank() &&
+                    (usePhone || useWear || useZephyr || useCamera) &&
+                    (!useCamera || hasCameraPermission)
                 Button(
                     modifier = Modifier.fillMaxWidth(),
-                    enabled  = hasCameraPermission && label.isNotBlank(),
+                    enabled  = canStart,
                     onClick  = {
-                        statusMsg = "Capturing…"
-                        viewModel.captureAndUploadImage(cameraHelper, label) { ok, msg ->
-                            statusMsg = msg
-                        }
+                        viewModel.lastLabel = label
+                        if (offlineOn) viewModel.startOfflineLogging()
+                        viewModel.startUnifiedRecording(
+                            durationMs          = effectiveDurationSec * 1000L,
+                            label               = label.trim(),
+                            includePhoneSensors = usePhone,
+                            includeWear         = useWear,
+                            includeZephyr       = useZephyr,
+                            cameraHelper        = cameraHelper.takeIf { useCamera },
+                        )
+                        statusMsg = "Recording '$label' for ${effectiveDurationSec}s…"
                     }
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Icon(Icons.Default.FiberManualRecord, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Capture & upload image")
+                    Text(if (multiRecording) "Recording '$label'…"
+                         else "Record '${label.ifBlank { "label" }}' for ${effectiveDurationSec}s")
                 }
-                if (!hasCameraPermission) {
-                    Text(
-                        if (permanentlyDenied)
-                            "Camera access was permanently denied. Open Settings and enable the Camera permission."
-                        else
-                            "Grant camera permission to see the viewfinder and capture images.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else if (label.isBlank()) {
-                    Text(
-                        "Enter a label above to enable capture.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        enabled  = !isRunning && label.isNotBlank(),
+                        onClick  = {
+                            viewModel.lastLabel = label
+                            if (selectedSensor == "GPS (Location)") {
+                                val ok = ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (!ok) {
+                                    locationPermLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    statusMsg = "Grant location permission and tap Start again."
+                                    return@Button
+                                }
+                            }
+                            if (offlineOn) viewModel.startOfflineLogging()
+                            viewModel.startSensorForDuration(
+                                selectedSensor,
+                                effectiveDurationSec * 1000L
+                            )
+                            statusMsg = "Collecting $selectedSensor for ${effectiveDurationSec}s…"
+                        }
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Start (${effectiveDurationSec}s)")
+                    }
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        colors   = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        enabled  = isRunning,
+                        onClick  = {
+                            viewModel.stopSensor()
+                            if (offlineOn) viewModel.stopOfflineLogging()
+                            statusMsg = "Stopped."
+                        }
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Stop")
+                    }
                 }
             }
         }
-        // ── Section: Live readout ─────────────────────────────────────────────
+
+        // ── Live readout ────────────────────────────────────────────────────
         if (sensorData != null) {
             item {
                 HorizontalDivider()
@@ -718,7 +796,7 @@ fun CollectScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
             }
         }
 
-        // ── Status message ─────────────────────────────────────────────────
+        // ── Status message ──────────────────────────────────────────────────
         if (statusMsg.isNotBlank()) {
             item {
                 Text(statusMsg,
@@ -1015,118 +1093,58 @@ fun ApiKeyDialog(apiKeyStore: ApiKeyStore, onDismiss: () -> Unit) {
 
 @Composable
 fun WearOSScreen(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
-    val wearNode        by viewModel.wearNode.collectAsState()
-    val wearCount       by viewModel.wearSampleCount.collectAsState()
-    val zephyrConnected by viewModel.zephyrConnected.collectAsState()
-    val isRecording     by viewModel.multiRecording.collectAsState()
+    // Recording lives in the Collect tab — this screen is a small status
+    // panel that surfaces watch pairing state and a nudge towards where
+    // the actual workflow lives.
+    @Suppress("UNUSED_PARAMETER") val _unused = cameraHelper
+    val wearNode  by viewModel.wearNode.collectAsState()
+    val wearCount by viewModel.wearSampleCount.collectAsState()
 
-    var label    by remember { mutableStateOf("idle") }
-    var seconds  by remember { mutableFloatStateOf(5f) }
-    var usePhone by remember { mutableStateOf(true) }
-    var useWear  by remember { mutableStateOf(true) }
-    var useZephyr by remember { mutableStateOf(true) }
-    var useCamera by remember { mutableStateOf(false) }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 16.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item {
-            Text("Multi-modal capture", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
-            Text(
-                "Combine Wear OS sensors, the phone's own SensorManager, the " +
-                "Nesso N1 IMU and a camera snapshot into a single labelled " +
-                "session. Each stream is uploaded as its own Edge Impulse " +
-                "ingestion sample sharing the label so they line up downstream.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        }
-
-        // Source status banners
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Sources", style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary)
-                    SourceRow(
-                        icon = Icons.Default.Watch,
-                        title = if (wearNode != null) "Wear OS: $wearNode" else "Wear OS: no node",
-                        subtitle = "Samples received: $wearCount",
-                        ok = wearNode != null,
-                    )
-                    SourceRow(
-                        icon = Icons.Default.Bluetooth,
-                        title = if (zephyrConnected) "Nesso N1: connected" else "Nesso N1: not connected",
-                        subtitle = "Open the Zephyr BLE tab to scan",
-                        ok = zephyrConnected,
-                    )
-                    TextButton(onClick = { viewModel.refreshWearNode() }) {
-                        Text("Refresh Wear OS connection")
-                    }
-                }
-            }
-        }
-
-        // Label + duration
-        item {
-            OutlinedTextField(
-                value = label, onValueChange = { label = it },
-                label = { Text("Capture label") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        item {
-            Column {
-                Text("Duration: ${seconds.toInt()} s",
-                    style = MaterialTheme.typography.labelLarge)
-                Slider(
-                    value = seconds, onValueChange = { seconds = it },
-                    valueRange = 1f..30f, steps = 28,
-                )
-            }
-        }
-
-        // Per-stream toggles
-        item {
-            Text("Streams", style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary)
-        }
-        item { ToggleRow("Phone SensorManager (accel, gyro, mag, light, pressure, …)",
-                usePhone) { usePhone = it } }
-        item { ToggleRow("Wear OS watch (accel, gyro, heart rate)",
-                useWear, enabled = wearNode != null) { useWear = it } }
-        item { ToggleRow("Nesso N1 IMU (BLE)",
-                useZephyr, enabled = zephyrConnected) { useZephyr = it } }
-        item { ToggleRow("Camera snapshot at session start",
-                useCamera) { useCamera = it } }
-
-        item {
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isRecording && (usePhone || useWear || useZephyr || useCamera)
-                          && label.isNotBlank(),
-                onClick = {
-                    viewModel.startUnifiedRecording(
-                        durationMs = (seconds.toLong() * 1000L).coerceAtLeast(1000L),
-                        label = label.trim(),
-                        includePhoneSensors = usePhone,
-                        includeWear = useWear,
-                        includeZephyr = useZephyr,
-                        cameraHelper = cameraHelper.takeIf { useCamera },
-                    )
-                }
+        Text(
+            "Wear OS companion",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "Install the companion app from the wearosdatalogger module on " +
+            "your watch, then pair it from the Wear OS app on the phone. " +
+            "Once a watch is connected its sensor stream becomes available " +
+            "as a toggle in the Collect tab.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(Icons.Default.FiberManualRecord, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(if (isRecording)
-                    "Recording \"$label\" \u2026"
-                else
-                    "Record \"$label\" for ${seconds.toInt()}s")
+                Text("Connection status",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary)
+                SourceRow(
+                    icon = Icons.Default.Watch,
+                    title = if (wearNode != null) "Connected to: $wearNode"
+                            else "No paired watch detected",
+                    subtitle = "Samples received this session: $wearCount",
+                    ok = wearNode != null,
+                )
+                TextButton(onClick = { viewModel.refreshWearNode() }) {
+                    Text("Refresh Wear OS connection")
+                }
             }
         }
+        Text(
+            "Tip: head to the Collect tab and enable the Wear OS stream toggle " +
+            "to record watch sensors as part of a multi-modal capture.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

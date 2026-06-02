@@ -286,6 +286,12 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                     NavigationBarItem(
                         selected = selectedTab == 3,
                         onClick  = { selectedTab = 3 },
+                        icon     = { Icon(Icons.Default.Cable, contentDescription = null) },
+                        label    = { Text("USB OTG") }
+                    )
+                    NavigationBarItem(
+                        selected = selectedTab == 4,
+                        onClick  = { selectedTab = 4 },
                         icon     = { Icon(Icons.Default.Folder, contentDescription = null) },
                         label    = { Text("Datasets") }
                     )
@@ -320,7 +326,8 @@ fun AppRoot(viewModel: SensorViewModel, cameraHelper: CameraHelper) {
                             0 -> CollectScreen(viewModel, cameraHelper)
                             1 -> ZephyrBLEScreen(viewModel)
                             2 -> WearOSScreen(viewModel, cameraHelper)
-                            3 -> DatasetsScreen(viewModel)
+                            3 -> UsbSerialScreen(viewModel)
+                            4 -> DatasetsScreen(viewModel)
                         }
                     }
                 }
@@ -1056,6 +1063,229 @@ fun ZephyrBLEScreen(viewModel: SensorViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
+            }
+        }
+    }
+}
+
+// =============================================================================
+// SECONDARY: USB OTG serial screen
+// Connect any CDC-ACM / FTDI / CH340 / CP21xx serial device (e.g. Arduino)
+// via a USB-OTG adapter and stream sensor data to Edge Impulse.
+// =============================================================================
+
+@Composable
+fun UsbSerialScreen(viewModel: SensorViewModel) {
+    val isConnected  by viewModel.usbConnected.collectAsState()
+    val status       by viewModel.usbStatus.collectAsState()
+    val sampleCount  by viewModel.usbSampleCount.collectAsState()
+    val headers      by viewModel.usbColumnHeaders.collectAsState()
+    val lastSample   by viewModel.usbLastSample.collectAsState()
+    val isRecording  by viewModel.usbRecording.collectAsState()
+
+    var label           by remember { mutableStateOf("idle") }
+    var durationSec     by remember { mutableStateOf("5") }
+    var intervalMs      by remember { mutableStateOf("10") }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
+    ) {
+        item {
+            Text(
+                "USB OTG Serial",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Connect an Arduino or any serial firmware device via a USB-OTG adapter. " +
+                "The device must send CSV sensor values over serial at 115200 baud.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        // Connection banner
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (isConnected) Color(0xFF1B5E20) else Color(0xFF37474F),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    status,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    if (isConnected) Icons.Default.Usb else Icons.Default.UsbOff,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+        }
+
+        // Connect / Disconnect
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    modifier = Modifier.weight(1f),
+                    enabled  = !isConnected,
+                    onClick  = { viewModel.usbSerialClient.tryConnect() }
+                ) {
+                    Icon(Icons.Default.Usb, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Connect USB device")
+                }
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    enabled  = isConnected,
+                    onClick  = { viewModel.usbSerialClient.close() }
+                ) { Text("Disconnect") }
+            }
+        }
+
+        // Live readout
+        if (isConnected) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            "Live data",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (headers.isNotEmpty() && lastSample != null) {
+                            val sample = lastSample!!
+                            headers.forEachIndexed { i, col ->
+                                val v = if (i < sample.size) "%.4f".format(sample[i]) else "—"
+                                Text("$col: $v")
+                            }
+                        } else {
+                            Text(
+                                "Waiting for data…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        Text(
+                            "Total samples: $sampleCount",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Recording controls
+        item {
+            Text(
+                "Record & upload",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        item {
+            OutlinedTextField(
+                value    = label,
+                onValueChange = { label = it },
+                label    = { Text("Edge Impulse label") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                enabled  = !isRecording
+            )
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value    = durationSec,
+                    onValueChange = { durationSec = it.filter { c -> c.isDigit() } },
+                    label    = { Text("Duration (s)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    enabled  = !isRecording,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value    = intervalMs,
+                    onValueChange = { intervalMs = it.filter { c -> c.isDigit() } },
+                    label    = { Text("Interval (ms)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    enabled  = !isRecording,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
+        }
+        item {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled  = isConnected && !isRecording && label.isNotBlank(),
+                onClick  = {
+                    val dur  = (durationSec.toLongOrNull() ?: 5L) * 1000L
+                    val intv = intervalMs.toIntOrNull() ?: 10
+                    viewModel.startUsbRecording(label.trim(), dur, intv)
+                }
+            ) {
+                Icon(Icons.Default.FiberManualRecord, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text(if (isRecording) "Recording…" else "Record \"$label\" (${durationSec}s)")
+            }
+        }
+
+        // Protocol reference card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Serial protocol (115200 baud)",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "!ax,ay,az          ← optional header (sent once)",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    Text(
+                        "0.12,-0.34,9.81    ← data row (floats, CSV, \\n)",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    Text(
+                        "# comment line     ← ignored",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "See sample-arduino/ in the repo for a ready-to-flash Arduino sketch.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }

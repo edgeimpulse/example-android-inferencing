@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    USB device filter for the OTG serial tab.
+
+    Covers every chip that usb-serial-for-android handles natively:
+      • FTDI   FT232R / FT231X / FT234XD  (VID 0403)
+      • Silabs CP2102 / CP2105 / CP2108    (VID 10C4)
+      • Prolific PL2303                    (VID 067B)
+      • WCH   CH340 / CH341               (VID 1A86)
+      • Microchip MCP2221                  (VID 04D8)
+      • CDC-ACM composite (Arduino, STM)   (class 2 / subclass 2)
+
+    Adding vendor-id / product-id entries here causes Android to show
+    the "open with Edge Impulse Data Collector?" prompt the moment the
+    device is plugged in, so the user is never left wondering why nothing
+    happened.  The broad <usb-device /> entry at the bottom acts as a
+    catch-all for any device whose VID/PID is not listed above but is
+    still supported by the library at runtime.
+-->
+<resources>
+    <!-- FTDI -->
+    <usb-device vendor-id="1027" />   <!-- 0x0403 -->
+
+    <!-- Silabs CP210x -->
+    <usb-device vendor-id="4292" />   <!-- 0x10C4 -->
+
+    <!-- Prolific PL2303 -->
+    <usb-device vendor-id="1659" />   <!-- 0x067B -->
+
+    <!-- WCH CH340 / CH341 -->
+    <usb-device vendor-id="6790" />   <!-- 0x1A86 -->
+
+    <!-- Microchip MCP2221 -->
+    <usb-device vendor-id="1240" />   <!-- 0x04D8 -->
+
+    <!-- Arduino (Uno R4 Minima / WiFi, Leonardo, Micro, Due, Nano 33, …) -->
+    <usb-device vendor-id="9025" />   <!-- 0x2341 Arduino LLC -->
+    <usb-device vendor-id="10755" />  <!-- 0x2A03 Arduino Srl  -->
+
+    <!-- Nordic Semiconductor (nRF52840-based boards via USB CDC) -->
+    <usb-device vendor-id="6421" />   <!-- 0x1915 Nordic -->
+
+    <!-- Catch-all — any attached USB device may be a serial adapter -->
+    <usb-device />
+</resources>

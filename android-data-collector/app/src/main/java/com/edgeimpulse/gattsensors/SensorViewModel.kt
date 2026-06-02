@@ -21,6 +21,7 @@ class SensorViewModel(
     val voiceSettingsStore: VoiceSettingsStore,
     private val locationCollector: LocationCollector,
     private val audioRecorder: AudioFileRecorder,
+    val usbSerialClient: UsbSerialClient,
 ) : AndroidViewModel(application) {
 
     /**
@@ -74,6 +75,18 @@ class SensorViewModel(
     val zephyrRecording = _zephyrRecording.asStateFlow()
 
     private var zephyrRecordingJob: Job? = null
+
+    // Expose USB OTG serial state for the UI
+    val usbConnected      = usbSerialClient.isConnected
+    val usbStatus         = usbSerialClient.statusMessage
+    val usbSampleCount    = usbSerialClient.sampleCount
+    val usbColumnHeaders  = usbSerialClient.columnHeaders
+    val usbLastSample     = usbSerialClient.lastSample
+
+    private val _usbRecording = MutableStateFlow(false)
+    val usbRecording = _usbRecording.asStateFlow()
+
+    private var usbRecordingJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -369,6 +382,33 @@ class SensorViewModel(
 
     fun refreshWearNode() = wearOSClient.refreshNodes()
 
+    // -------------------------------------------------------------------------
+    // USB OTG serial recording
+    // -------------------------------------------------------------------------
+
+    /**
+     * Record from the USB serial device for [durationMs] ms, then upload
+     * the buffer to Edge Impulse tagged with [label].
+     *
+     * @param intervalMs the sampling interval configured on the Arduino (ms)
+     */
+    fun startUsbRecording(label: String, durationMs: Long, intervalMs: Int = 10) {
+        if (_usbRecording.value) return
+        _usbRecording.value = true
+        usbSerialClient.resetSampleCount()
+        dataRepository.startUsbRecording()
+
+        usbRecordingJob = viewModelScope.launch {
+            delay(durationMs)
+            dataRepository.stopUsbRecordingAndUpload(
+                label        = label,
+                intervalMs   = intervalMs,
+                columnHeaders = usbColumnHeaders.value,
+            )
+            _usbRecording.value = false
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         // Make sure all sensor / radio resources are released so we don't drain
@@ -380,6 +420,7 @@ class SensorViewModel(
         gattServerManager.stopServer()
         edgeImpulseManager.disconnect()
         dataRepository.stopOfflineLogging()
+        usbSerialClient.unregister()
     }
 }
 

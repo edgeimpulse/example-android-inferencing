@@ -99,6 +99,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-wearable:18.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    // USB OTG serial (FTDI / CP21xx / CH34x / Prolific / CDC-ACM)
+    implementation("com.github.mik3y:usb-serial-for-android:3.7.0")
+
     // Debug & Test
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

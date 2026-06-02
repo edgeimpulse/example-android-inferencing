@@ -26,12 +26,13 @@ class ViewModelFactory(private val application: Application) : ViewModelProvider
             val edgeImpulseManager  = EdgeImpulseManager(apiKeyStore, dataRepository, deviceId)
             val zephyrBLEClient     = ZephyrBLEClient(application, dataRepository)
             val wearOSClient        = WearOSClient(application)
+            val usbSerialClient     = UsbSerialClient(application, dataRepository)
             @Suppress("UNCHECKED_CAST")
             return SensorViewModel(
                 application, collector, gattServerManager,
                 edgeImpulseManager, dataRepository, zephyrBLEClient,
                 wearOSClient, apiKeyStore, voiceSettingsStore,
-                locationCollector, audioRecorder
+                locationCollector, audioRecorder, usbSerialClient
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

@@ -432,6 +432,10 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
     /** True while a user-initiated Nesso recording window is open. */
     @Volatile private var isZephyrRecording = false
 
+    // ---- USB OTG serial recording buffer ------------------------------------
+    private val pendingUsbSensorData = mutableListOf<FloatArray>()
+    @Volatile private var isUsbRecording = false
+
     /**
      * Begin a Nesso N1 capture window. Clears any buffered samples so the
      * upload contains only data from this window.
@@ -543,6 +547,92 @@ class DataRepository(private val context: Context, private val apiKeyStore: ApiK
                 csvFileWriter?.append(samples.joinToString(",") + "\n")
             } catch (e: IOException) {
                 Log.e("DataRepository", "CSV write error", e)
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // USB OTG serial recording
+    // -------------------------------------------------------------------------
+
+    /**
+     * Begin a USB serial capture window. Clears any buffered samples so the
+     * upload contains only data from this window.
+     */
+    fun startUsbRecording() {
+        synchronized(pendingUsbSensorData) {
+            pendingUsbSensorData.clear()
+        }
+        isUsbRecording = true
+    }
+
+    /**
+     * Close the USB capture window and upload buffered samples to Edge Impulse
+     * tagged with [label]. [intervalMs] should match the Arduino sketch's
+     * sampling interval (default 10 ms / 100 Hz). [columnHeaders] are the
+     * column names declared by the firmware's `!header` line.
+     */
+    fun stopUsbRecordingAndUpload(
+        label: String,
+        intervalMs: Int = 10,
+        columnHeaders: List<String> = emptyList(),
+    ) {
+        isUsbRecording = false
+        val windows: List<FloatArray>
+        synchronized(pendingUsbSensorData) {
+            if (pendingUsbSensorData.isEmpty()) {
+                Log.w("DataRepository", "USB recording '$label' is empty — skipping upload")
+                return
+            }
+            windows = pendingUsbSensorData.toList()
+            pendingUsbSensorData.clear()
+        }
+        val rows: List<List<Float>> = windows.map { it.toList() }
+        val sensorName = if (columnHeaders.isNotEmpty()) columnHeaders.joinToString("/") else "USB IMU"
+        val sensors = listOf(SensorInfo(sensorName, listOf(1000.0 / intervalMs), 600))
+        val payload = IngestionPayload(
+            device_name = "usb-serial-device",
+            device_type = "USB_SERIAL_IMU",
+            interval_ms = intervalMs,
+            sensors     = sensors,
+            values      = rows
+        )
+        val requestBody = IngestionRequest(Protected("v1", "none", "00"), payload)
+        val request = Request.Builder()
+            .url("https://ingestion.edgeimpulse.com/api/training/data")
+            .header("x-api-key", apiKeyStore.get())
+            .header("x-label", label)
+            .post(gson.toJson(requestBody).toRequestBody("application/json".toMediaType()))
+            .build()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    Log.e("DataRepository", "USB recording upload failed: ${response.body?.string()}")
+                } else {
+                    Log.d("DataRepository", "USB recording '$label' (${rows.size} samples) uploaded")
+                }
+            } catch (e: IOException) {
+                Log.e("DataRepository", "USB recording upload exception", e)
+            }
+        }
+    }
+
+    /**
+     * Store one USB serial sample. Called continuously by [UsbSerialClient] as
+     * data arrives; only buffered when a recording window is open.
+     */
+    fun saveUsbSensorData(samples: FloatArray) {
+        if (isUsbRecording) {
+            synchronized(pendingUsbSensorData) {
+                pendingUsbSensorData.add(samples)
+            }
+        }
+        if (isLoggingOffline) {
+            try {
+                csvFileWriter?.append(samples.joinToString(",") + "\n")
+            } catch (e: IOException) {
+                Log.e("DataRepository", "USB CSV write error", e)
             }
         }
     }

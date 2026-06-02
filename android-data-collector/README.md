@@ -2,7 +2,7 @@
 
 # Edge Impulse Data Collector — Android
 
-An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edgeimpulse.com) platform. Collect phone sensor data, photos, and BLE-relayed sensor data from a Zephyr device, and upload directly to your Edge Impulse project.
+An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edgeimpulse.com) platform. Collect phone sensor data, photos, BLE-relayed sensor data from a Zephyr device, and USB-OTG serial sensor data from any Arduino or serial firmware device, then upload directly to your Edge Impulse project.
 
 > **Sample APK** — grab [`sample-apk/edge-impulse-data-collector.apk`](sample-apk/edge-impulse-data-collector.apk) to sideload without building.
 
@@ -28,7 +28,11 @@ An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edge
 
 | Collect | Zephyr BLE | WearOS |
 |:---:|:---:|:---:|
-| ![Collect tab](screenshots/04_project_connected.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
+| ![Collect tab](screenshots/01_collect_tab.png) | ![Zephyr BLE tab](screenshots/02_zephyr_ble.png) | ![WearOS tab](screenshots/03_wearos.png) |
+
+| USB OTG | Datasets | Settings |
+|:---:|:---:|:---:|
+| ![USB OTG tab](screenshots/07_otg_tab.png) | ![Datasets tab](screenshots/05_datasets_tab.png) | ![Settings dialog](screenshots/06_settings.png) |
 
 ---
 
@@ -144,6 +148,36 @@ The **Zephyr BLE** tab connects to a Nordic Thingy:53 running the companion [`ei
 
 The **WearOS** tab relays heart rate, accelerometer, and GPS from a paired Wear OS watch via the Wearable Data Layer API. Pair your watch, install the companion wearable module from [`/wearosdatalogger`](wearosdatalogger), and data flows through the same upload pipeline.
 
+### USB OTG serial
+
+The **USB OTG** tab streams sensor data from any USB serial device — an Arduino, a custom firmware board, or any microcontroller with a CDC-ACM / FTDI / CP21xx / CH340 serial chip — over a standard USB-OTG adapter. No Zephyr or BLE knowledge required.
+
+**Supported chips (auto-detected):** CDC-ACM (Arduino Nano 33 BLE/IoT, Leonardo, Micro, Uno R4, nRF52840 USB), FTDI FT232R/FT231X, Silabs CP2102/CP2105, Prolific PL2303, WCH CH340/CH341.
+
+**Wire protocol (115200 baud, newline-terminated ASCII):**
+
+```
+!ax,ay,az,gx,gy,gz   ← column header, sent once on boot (optional)
+0.12,-0.34,9.81,...  ← data row — comma-separated floats
+# comment            ← ignored
+```
+
+**Quick start:**
+
+1. Flash [`sample-arduino/nesso_usb_serial_imu/nesso_usb_serial_imu.ino`](sample-arduino/nesso_usb_serial_imu/nesso_usb_serial_imu.ino) to an Arduino Nano 33 BLE (or any supported board — see sketch comments).
+2. Connect phone → USB-OTG adapter → Arduino USB cable.
+3. Open the **USB OTG** tab → tap **Connect USB device**.
+4. Enter a label, duration, and sampling interval → tap **Record**.
+5. Samples are uploaded to Edge Impulse automatically when the window closes.
+
+**Arduino sketch targets** (uncomment the matching `#define` in the sketch):
+
+| Board | Library |
+|---|---|
+| Arduino Nano 33 BLE / BLE Sense *(default)* | `Arduino_LSM9DS1` |
+| Arduino Nano 33 IoT | `Arduino_LSM6DS3` |
+| Any board + MPU-6050 breakout | `Adafruit MPU6050` |
+
 ---
 
 ## Setup from source
@@ -179,6 +213,8 @@ The app requests these on first launch — all are optional (none blocks the UI)
 | `BODY_SENSORS` | PPG / heart rate |
 | `BLUETOOTH_SCAN/CONNECT` | Zephyr BLE (Android 12+) |
 
+USB host access requires no runtime permission — the OS grants it via the `USB_DEVICE_ATTACHED` intent filter and the device-filter XML (`res/xml/usb_device_filter.xml`). The first time a device is plugged in, Android shows a one-time "Allow … to access the USB device?" dialog.
+
 ---
 
 ## Architecture
@@ -190,16 +226,19 @@ flowchart TD
         C[Collect]
         Z[ZephyrBLE]
         W[WearOS]
+        U[USB OTG]
     end
     UI --> VM[SensorViewModel]
     VM --> SC["SensorCollector\nphone IMU / PPG"]
     VM --> ZB["ZephyrBLEClient\nBLE → Thingy:53"]
+    VM --> USB["UsbSerialClient\nUSB-OTG serial"]
     VM --> CH["CameraHelper\nCameraX JPEG"]
     VM --> EM["EdgeImpulseManager\nremote-mgmt WebSocket"]
     VM --> VCM["VoiceCommandManager\nKWS + on-device STT"]
     VCM --> VM
     SC --> DR["DataRepository\nCSV log · HTTPS ingestion · image upload"]
     ZB --> DR
+    USB --> DR
     CH --> DR
     EM --> EI
     DR --> EI["Edge Impulse APIs\ningestion + remote-mgmt"]
@@ -213,6 +252,7 @@ flowchart TD
 | Camera JPEG | binary `image/jpeg` | `POST /api/training/data` |
 | Zephyr inference result | JSON `x-label` = inferred class | `POST /api/training/data` |
 | Zephyr raw IMU | buffered CSV → flush on inference | `POST /api/training/data` |
+| USB OTG serial (Arduino / any MCU) | buffered float rows → flush on window close | `POST /api/training/data` |
 | EI Studio remote trigger | WebSocket `wss://remote-mgmt.edgeimpulse.com` | stream |
 
 ### Zephyr BLE GATT profile
@@ -239,11 +279,12 @@ flowchart TD
 
 | File | Purpose |
 |---|---|
-| `MainActivity.kt` | Compose UI — 3 nav destinations + Settings dialog |
+| `MainActivity.kt` | Compose UI — 5 nav destinations + Settings dialog |
 | `SensorViewModel.kt` | Single ViewModel for all tabs |
 | `SensorCollector.kt` | Android Sensor API → `SensorData` flow |
 | `CameraHelper.kt` | CameraX → JPEG bytes |
 | `ZephyrBLEClient.kt` | BLE central — scan, connect, parse Zephyr |
+| `UsbSerialClient.kt` | USB OTG serial — auto-detect chip, parse CSV protocol |
 | `DataRepository.kt` | CSV logging + EI HTTPS uploads |
 | `EdgeImpulseManager.kt` | Remote-mgmt WebSocket client |
 | `GattProfile.kt` | UUIDs shared with firmware |
@@ -255,6 +296,7 @@ flowchart TD
 | `voice/OnDeviceStt.kt` | Android SpeechRecognizer wrapper (6 s cap) |
 | `voice/VoiceCommandParser.kt` | Parse "record N seconds as label" |
 | `voice/VoiceCommandManager.kt` | Orchestrate KWS → STT → recording pipeline |
+| `sample-arduino/nesso_usb_serial_imu/` | Arduino sketch — IMU over USB serial (Nano 33 BLE / IoT / MPU-6050) |
 
 ---
 
@@ -276,8 +318,7 @@ This codebase is intentionally split into small, single-purpose components (`Sen
 | Image capture + EI upload | `CameraHelper.kt`, `DataRepository.uploadImage` |
 | Microphone capture + EI upload | `AudioFileRecorder.kt`, `DataRepository.uploadAudio` |
 | Wear OS sensor relay | `wearosdatalogger/` module, `WearOSClient.kt`, `WearableMessageListenerService.kt`, `WearProtocol.kt` |
-| BLE central for a Zephyr peripheral | `ZephyrBLEClient.kt`, `GattProfile.kt` |
-| Remote-management (EI Studio “Connect device”) | `EdgeImpulseManager.kt`, `EdgeImpulseService.kt` |
+| BLE central for a Zephyr peripheral | `ZephyrBLEClient.kt`, `GattProfile.kt` || USB OTG serial sensor (Arduino / MCU) | `UsbSerialClient.kt`, `DataRepository` (`saveUsbSensorData`, `startUsbRecording`, `stopUsbRecordingAndUpload`), `sample-arduino/` || Remote-management (EI Studio “Connect device”) | `EdgeImpulseManager.kt`, `EdgeImpulseService.kt` |
 | On-device CSV browsing / editing | `DatasetsScreen.kt`, `DatasetEditorScreen.kt`, `DataRepository` (`listStoredDatasets`, `loadDatasetFull`, `writeDataset`) |
 
 A good starter prompt for an agent:

@@ -23,6 +23,7 @@ app/src/main/cpp/model-parameters
 app/src/main/cpp/tflite-model
 
 # TFLite prebuilt static libs and source tree (download via app/src/main/cpp/tflite/download_tflite_libs.sh)
+# The source tree is not used by the build - only the .a files in tflite/android64 are linked
 app/src/main/cpp/tflite/android64
 app/src/main/cpp/tensorflow-lite
 wearosdatalogger/src/main/cpp/tensorflow-lite

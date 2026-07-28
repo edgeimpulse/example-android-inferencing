@@ -17,6 +17,9 @@ local.properties
 /app/src/main/cpp/model-parameters
 /app/src/main/cpp/tflite/android64
 /app/src/main/cpp/tflite-model
+
+# TFLite source tree - not used by the build; only the pre-built .a files in
+# tflite/android64/ are linked. Run tflite/download_tflite_libs.sh to get them.
 /app/src/main/cpp/tensorflow-lite
 
 # Gradle daemon JVM config

@@ -95,3 +95,10 @@ dependencies {
     // implementation("androidx.appcompat:appcompat:1.7.0")
     // implementation("com.google.android.material:material:1.12.0")
 }
+
+// Android Studio (via the Kotlin IDE plugin) requests this task at the :app level.
+// In Gradle 8.x it is only registered at root level by the Kotlin Gradle Plugin,
+// so we forward it here so the IDE sync succeeds.
+tasks.register("prepareKotlinBuildScriptModel") {
+    dependsOn(rootProject.tasks.named("prepareKotlinBuildScriptModel"))
+}

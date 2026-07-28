@@ -1,0 +1,12 @@
+# Gradle
+*.iml
+.gradle
+/local.properties
+local.properties
+/captures
+.externalNativeBuild
+.cxx
+gradle/gradle-daemon-jvm.properties
+
+# TFLite source tree (pre-built libs downloaded via download_tflite_libs.sh)
+/app/src/main/cpp/tensorflow-lite

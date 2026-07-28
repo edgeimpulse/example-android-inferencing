@@ -1,1 +1,4 @@
 /build
+
+# TFLite source tree (pre-built libs downloaded via download_tflite_libs.sh)
+/src/main/cpp/tensorflow-lite

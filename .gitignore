@@ -9,9 +9,12 @@ EdgeImpulseSwimCollector/
 GATTSensors2/
 ei-zephyr-ble-gatt-client/
 
-# Android build outputs (for any sub-project)
+# Android build outputs and caches (for any sub-project)
 **/build/
+**/.gradle/
+**/.cxx/
 
 # IDE
 **/.idea/
 *.iml
+.vscode/

@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Test_camera"
+rootProject.name = "example_kws"
 include(":app")
  

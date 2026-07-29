@@ -8,12 +8,6 @@ local.properties
 .cxx
 gradle/gradle-daemon-jvm.properties
 
-# Edge Impulse deployment files (re-generate via Edge Impulse CLI)
-/app/src/main/cpp/edge-impulse-sdk
-/app/src/main/cpp/model-parameters
-/app/src/main/cpp/tflite/android64
-/app/src/main/cpp/tflite-model
-
 # TFLite source tree (pre-built libs downloaded via download_tflite_libs.sh)
 # The source tree is not used by the build - only the .a files in tflite/android64 are linked
 /app/src/main/cpp/tensorflow-lite

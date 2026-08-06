@@ -130,6 +130,7 @@ class SensorViewModel(
                 durationJob = viewModelScope.launch {
                     delay(durationMs)
                     locationCollector.stop()
+                    dataRepository.stopOfflineLogging()
                     _isCollecting.value = false
                 }
             }
@@ -141,6 +142,7 @@ class SensorViewModel(
                 audioRecorder.start(durationMs) { wav ->
                     if (wav != null) dataRepository.uploadAudio(wav, label)
                     onMicRelease?.invoke()
+                    dataRepository.stopOfflineLogging()
                     _isCollecting.value = false
                 }
             }
@@ -169,6 +171,7 @@ class SensorViewModel(
             onMicRelease?.invoke()
         }
         gattServerManager.stopServer()
+        dataRepository.stopOfflineLogging()
         _isCollecting.value = false
     }
 
@@ -376,6 +379,7 @@ class SensorViewModel(
                 dataRepository.stopZephyrRecordingAndUpload(label)
             }
             dataRepository.stopMultiRecordingAndUpload(label, durationMs)
+            dataRepository.stopOfflineLogging()
             _multiRecording.value = false
         }
     }

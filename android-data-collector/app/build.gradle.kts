@@ -1,7 +1,7 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.android.application") version "8.13.2"
+    id("org.jetbrains.kotlin.android") version "2.2.10"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
 }
 
 android {
@@ -47,12 +47,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = "1.8"
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     buildFeatures {
@@ -63,6 +59,14 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+    buildToolsVersion = "34.0.0"
+    ndkVersion = "27.0.12077973"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -107,4 +111,12 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")}
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+}
+
+// Android Studio requests this task at module level during sync in some setups.
+if (tasks.findByName("prepareKotlinBuildScriptModel") == null) {
+    tasks.register("prepareKotlinBuildScriptModel") {
+        dependsOn(rootProject.tasks.named("prepareKotlinBuildScriptModel"))
+    }
+}

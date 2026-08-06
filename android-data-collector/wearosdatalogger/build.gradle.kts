@@ -32,10 +32,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -44,6 +40,12 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -69,4 +71,11 @@ dependencies {
     implementation("androidx.wear.compose:compose-material:1.2.1")
     implementation("androidx.wear.compose:compose-foundation:1.2.1")
     implementation("androidx.wear:wear-tooling-preview:1.0.0")
+}
+
+// Android Studio requests this task at module level during sync in some setups.
+if (tasks.findByName("prepareKotlinBuildScriptModel") == null) {
+    tasks.register("prepareKotlinBuildScriptModel") {
+        dependsOn(rootProject.tasks.named("prepareKotlinBuildScriptModel"))
+    }
 }

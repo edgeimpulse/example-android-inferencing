@@ -29,7 +29,7 @@ namespace {
 extern "C" {
 
 JNIEXPORT jint JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_initNative(JNIEnv*, jobject) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_initNative(JNIEnv*, jobject) {
     std::lock_guard<std::mutex> lk(g_lock);
     if (g_inited) return 0;
     run_classifier_init();
@@ -42,7 +42,7 @@ Java_com_edgeimpulse_gattsensors_voice_KwsNative_initNative(JNIEnv*, jobject) {
 }
 
 JNIEXPORT void JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_deinitNative(JNIEnv*, jobject) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_deinitNative(JNIEnv*, jobject) {
     std::lock_guard<std::mutex> lk(g_lock);
     if (!g_inited) return;
     run_classifier_deinit();
@@ -50,22 +50,22 @@ Java_com_edgeimpulse_gattsensors_voice_KwsNative_deinitNative(JNIEnv*, jobject) 
 }
 
 JNIEXPORT jint JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_sliceSize(JNIEnv*, jobject) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_sliceSize(JNIEnv*, jobject) {
     return (jint)EI_CLASSIFIER_SLICE_SIZE;
 }
 
 JNIEXPORT jint JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_frequency(JNIEnv*, jobject) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_frequency(JNIEnv*, jobject) {
     return (jint)EI_CLASSIFIER_FREQUENCY;
 }
 
 JNIEXPORT jint JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_labelCount(JNIEnv*, jobject) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_labelCount(JNIEnv*, jobject) {
     return (jint)EI_CLASSIFIER_LABEL_COUNT;
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_label(JNIEnv* env, jobject, jint idx) {
+Java_com_edgeimpulse_datalogger_voice_KwsNative_label(JNIEnv* env, jobject, jint idx) {
     if (idx < 0 || idx >= (jint)EI_CLASSIFIER_LABEL_COUNT) {
         return env->NewStringUTF("");
     }
@@ -77,7 +77,7 @@ Java_com_edgeimpulse_gattsensors_voice_KwsNative_label(JNIEnv* env, jobject, jin
  * the post-MAF classification scores.
  */
 JNIEXPORT jfloatArray JNICALL
-Java_com_edgeimpulse_gattsensors_voice_KwsNative_runSlice(JNIEnv* env, jobject,
+Java_com_edgeimpulse_datalogger_voice_KwsNative_runSlice(JNIEnv* env, jobject,
                                                           jfloatArray data) {
     std::lock_guard<std::mutex> lk(g_lock);
     if (!g_inited) {

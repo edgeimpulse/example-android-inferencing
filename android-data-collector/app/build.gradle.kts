@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.edgeimpulse.gattsensors"
+    namespace = "com.edgeimpulse.datalogger"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.edgeimpulse.gattsensors"
+        applicationId = "com.edgeimpulse.datalogger"
         // minSdk bumped from 26 -> 28: full-TFLite libtensorflow-lite.a uses
         // aligned_alloc which is only available on Android API 28+.
         minSdk = 28
@@ -61,6 +61,10 @@ android {
     }
     // composeOptions block removed: Kotlin 2.0 compose plugin handles the compiler automatically
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -68,18 +72,18 @@ android {
 
 dependencies {
     // Jetpack Compose
-    implementation(platform("androidx.compose:compose-bom:2024.09.03"))
-    implementation("androidx.activity:activity-compose")
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material-icons-extended")
 
     // AndroidX Core & Lifecycle
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
-    implementation("androidx.core:core-ktx:1.13.0")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.core.ktx)
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

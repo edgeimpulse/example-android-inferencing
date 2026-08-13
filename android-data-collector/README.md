@@ -1,6 +1,6 @@
 
 
-# Edge Impulse Data Collector — Android
+# Edge Impulse Data Logger — Android
 
 An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edgeimpulse.com) platform. Collect phone sensor data, photos, BLE-relayed sensor data from a Zephyr device, and USB-OTG serial sensor data from any Arduino or serial firmware device, then upload directly to your Edge Impulse project.
 
@@ -68,7 +68,7 @@ Or sideload the pre-built APK from [`sample-apk/`](sample-apk/).
 
 ### Step 4 — Collect sensor data (Accelerometer / PPG)
 
-1. Open **Edge Impulse Data Collector** on your phone.
+1. Open **Edge Impulse Data Logger** on your phone.
 2. On the **Collect** tab:
    - **Sensor** — choose `Accelerometer` or `PPG (Heart Rate)`.
    - **Edge Impulse label** — type the class label for this recording (e.g. `walking`, `idle`, `running`). The label maps directly to the Edge Impulse training label.

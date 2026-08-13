@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.edgeimpulse.wearosdatalogger"
+    namespace = "com.edgeimpulse.datalogger"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.edgeimpulse.wearosdatalogger"
+        applicationId = "com.edgeimpulse.datalogger"
         minSdk = 30
         targetSdk = 34
         versionCode = 1
@@ -48,25 +48,24 @@ android {
 }
 
 dependencies {
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation(libs.play.services.wearable)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.activity.compose)
 
     // Compose BOM - This manages Compose library versions
-    val composeBom = platform("androidx.compose:compose-bom:2024.02.02")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
+    implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
 
     // Core Compose libraries (versions managed by BOM)
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.tooling.preview)
+    debugImplementation(libs.androidx.ui.tooling)
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
 
     // Wear Compose libraries with explicit, stable versions
-    implementation("androidx.wear.compose:compose-material:1.2.1")
-    implementation("androidx.wear.compose:compose-foundation:1.2.1")
-    implementation("androidx.wear:wear-tooling-preview:1.0.0")
+    implementation(libs.androidx.compose.material)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.wear.tooling.preview)
 }

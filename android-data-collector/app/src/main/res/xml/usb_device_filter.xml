@@ -11,7 +11,7 @@
       • CDC-ACM composite (Arduino, STM)   (class 2 / subclass 2)
 
     Adding vendor-id / product-id entries here causes Android to show
-    the "open with Edge Impulse Data Collector?" prompt the moment the
+    the "open with Edge Impulse Data Logger?" prompt the moment the
     device is plugged in, so the user is never left wondering why nothing
     happened.  The broad <usb-device /> entry at the bottom acts as a
     catch-all for any device whose VID/PID is not listed above but is

@@ -1,5 +1,8 @@
 
 
+
+
+
 # Edge Impulse Data Logger — Android
 
 An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edgeimpulse.com) platform. Collect phone sensor data, photos, BLE-relayed sensor data from a Zephyr device, and USB-OTG serial sensor data from any Arduino or serial firmware device, then upload directly to your Edge Impulse project.
@@ -21,6 +24,11 @@ An Android **DAC** (Data Acquisition Client) for the [Edge Impulse](https://edge
 <video src="https://github.com/user-attachments/assets/db2ade2c-ef3d-49ef-b849-49de9445de4d" controls width="720"></video>
 
 *Collecting accelerometer data on the phone and uploading it live to Edge Impulse.*
+
+<video src="https://github.com/user-attachments/assets/d91a5955-10dc-4c0b-a6fa-d18b8339b952" controls width="720"></video>
+
+*Collection from studio side while the device is locked*
+
 
 ---
 

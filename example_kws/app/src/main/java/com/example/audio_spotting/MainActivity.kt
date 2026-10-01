@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // JNI (classic names – see native-lib.cpp)
+    private external fun setEnvVar(name: String, value: String): Int
     private external fun getModelInfo(): String
     private external fun getSliceSize(): Int
     private external fun classifyAudioSlice(slice: FloatArray): FloatArray?
@@ -83,6 +84,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // QNN environment setup - must be done early
+        try {
+            val libDir = applicationInfo.nativeLibraryDir
+            setEnvVar("ADSP_LIBRARY_PATH", "$libDir:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp")
+            setEnvVar("LD_LIBRARY_PATH", "$libDir:" + (System.getenv("LD_LIBRARY_PATH") ?: ""))
+            setEnvVar("QNN_LOG_LEVEL", "info")
+            setEnvVar("QNN_TFLITE_DELEGATE_OPTIONS",
+                """{"backend":"htp","profiling":true,"profiling_file_path":"/sdcard/qnn_profile.json"}"""
+            )
+            Log.i(TAG, "QNN environment configured")
+        } catch (e: Exception) {
+            Log.w(TAG, "QNN env setup failed (JNI may not be loaded yet): ${e.message}")
+        }
 
         txtInfo = findViewById(R.id.txtInfo)
         txtStatus = findViewById(R.id.txtStatus)

@@ -114,6 +114,10 @@ class BoundingBoxOverlay(context: Context, attrs: AttributeSet? = null) : View(c
 
 class MainActivity : ComponentActivity() {
 
+    // JNI bridge for QNN environment setup
+    private external fun setEnvVar(name: String, value: String): Int
+    private external fun passToCpp(imageData: ByteArray): InferenceResult?
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var resultTextView: TextView
     private lateinit var previewView: PreviewView
@@ -126,6 +130,20 @@ class MainActivity : ComponentActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // QNN environment setup - must be done early
+        try {
+            val libDir = applicationInfo.nativeLibraryDir
+            setEnvVar("ADSP_LIBRARY_PATH", "$libDir:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp")
+            setEnvVar("LD_LIBRARY_PATH", "$libDir:" + (System.getenv("LD_LIBRARY_PATH") ?: ""))
+            setEnvVar("QNN_LOG_LEVEL", "info")
+            setEnvVar("QNN_TFLITE_DELEGATE_OPTIONS",
+                """{"backend":"htp","profiling":true,"profiling_file_path":"/sdcard/qnn_profile.json"}"""
+            )
+            Log.i("MainActivity", "QNN environment configured")
+        } catch (e: Exception) {
+            Log.w("MainActivity", "QNN env setup failed (JNI may not be loaded yet): ${e.message}")
+        }
 
         resultTextView = findViewById(R.id.resultTextView) // Result TextView
         previewView = findViewById(R.id.previewView) // Camera preview view

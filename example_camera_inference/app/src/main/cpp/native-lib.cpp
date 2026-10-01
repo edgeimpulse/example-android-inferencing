@@ -36,14 +36,31 @@
 #include <android/log.h>
 #include <string>
 #include <stdio.h>
+#include <cstdlib>   // setenv
 #include "vector"
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 #include "edge-impulse-sdk/dsp/image/image.hpp"
+
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  "MAIN", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MAIN", __VA_ARGS__)
 
 jbyte* byteData = nullptr;
 #define CAMERA_INPUT_WIDTH 480
 #define CAMERA_INPUT_HEIGHT 640
 #define PIXEL_NUM 3
+
+// ==== JNI: env setter (for QNN configuration) ====
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_test_1camera_MainActivity_setEnvVar(
+        JNIEnv* env, jobject /*thiz*/, jstring jname, jstring jval) {
+    const char* name = env->GetStringUTFChars(jname, nullptr);
+    const char* val  = env->GetStringUTFChars(jval,  nullptr);
+    int rc = setenv(name, val, 1);
+    LOGI("setenv('%s','%s')->%d", name, val, rc);
+    env->ReleaseStringUTFChars(jname, name);
+    env->ReleaseStringUTFChars(jval,  val);
+    return rc;
+}
 
 static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
 {

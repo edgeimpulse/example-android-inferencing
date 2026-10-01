@@ -32,7 +32,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
     }
 
-    // JNI function that runs inference using the Edge Impulse SDK, returning a String
+    // JNI functions
+    external fun setEnvVar(name: String, value: String): Int
     external fun runInference(data: FloatArray): String?
 
     private lateinit var sensorManager: SensorManager
@@ -55,6 +56,19 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // QNN environment setup - must be done early
+        try {
+            val libDir = applicationInfo.nativeLibraryDir
+            setEnvVar("ADSP_LIBRARY_PATH", "$libDir:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp")
+            setEnvVar("LD_LIBRARY_PATH", "$libDir:" + (System.getenv("LD_LIBRARY_PATH") ?: ""))
+            setEnvVar("QNN_LOG_LEVEL", "info")
+            setEnvVar("QNN_TFLITE_DELEGATE_OPTIONS",
+                """{"backend":"htp","profiling":true,"profiling_file_path":"/sdcard/qnn_profile.json"}"""
+            )
+        } catch (e: Exception) {
+            Log.w("MainActivity", "QNN env setup failed (JNI may not be loaded yet): ${e.message}")
+        }
 
         // Initialize the sensor manager and accelerometer
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager

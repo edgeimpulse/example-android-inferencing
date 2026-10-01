@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include <string>
+#include <cstdlib>   // setenv
 
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
 #include "model-parameters/model_metadata.h"
@@ -10,6 +11,19 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 extern "C" {
+
+// ==== JNI: env setter (for QNN configuration) ====
+JNIEXPORT jint JNICALL
+Java_com_example_audio_1spotting_MainActivity_setEnvVar(
+        JNIEnv* env, jobject /*thiz*/, jstring jname, jstring jval) {
+    const char* name = env->GetStringUTFChars(jname, nullptr);
+    const char* val  = env->GetStringUTFChars(jval,  nullptr);
+    int rc = setenv(name, val, 1);
+    LOGI("setenv('%s','%s')->%d", name, val, rc);
+    env->ReleaseStringUTFChars(jname, name);
+    env->ReleaseStringUTFChars(jval,  val);
+    return rc;
+}
 
 // ---- Model info ----------------------------------------------------------------
 JNIEXPORT jstring JNICALL

@@ -35,7 +35,21 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <cstdlib>   // setenv
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
+
+// ==== JNI: env setter (for QNN configuration) ====
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_edgeimpulse_edgeimpulsewearos_presentation_MainActivity_setEnvVar(
+        JNIEnv* env, jobject /*thiz*/, jstring jname, jstring jval) {
+    const char* name = env->GetStringUTFChars(jname, nullptr);
+    const char* val  = env->GetStringUTFChars(jval,  nullptr);
+    int rc = setenv(name, val, 1);
+    env->ReleaseStringUTFChars(jname, name);
+    env->ReleaseStringUTFChars(jval,  val);
+    return rc;
+}
 
 extern "C"
 JNIEXPORT jint JNICALL

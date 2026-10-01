@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ZIP_URL="https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/2.39.0.250926/v2.39.0.250926.zip"
+QAIRT_DIR=2.50.40.260831
+ZIP_URL="https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/${QAIRT_DIR}/v${QAIRT_DIR}.zip"
 ZIP_FILE=""
 SCRIPTPATH="$(cd "$(dirname "$0")" && pwd -P)"
 JNI_ARM64_DIR="$SCRIPTPATH/arm64-v8a"

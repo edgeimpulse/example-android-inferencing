@@ -79,14 +79,19 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${EI_SOURCE_FILES})
 # can link libraries from various origins, such as libraries defined in this
 # build script, prebuilt third-party libraries, or Android system libraries.
 target_link_libraries(${CMAKE_PROJECT_NAME}
-        # List libraries link to the target library
         android
         log
-        tensorflow-lite
+        -Wl,--start-group
+        libtensorflow-lite.a
         farmhash
         fft2d_fftsg
         fft2d_fftsg2d
         ruy
         XNNPACK
         cpuinfo
-        pthreadpool)
+        pthreadpool
+        absl
+        microkernels-prod
+        kleidiai
+        -Wl,--end-group
+)

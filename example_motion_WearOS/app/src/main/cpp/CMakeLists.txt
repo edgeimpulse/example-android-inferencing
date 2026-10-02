@@ -22,15 +22,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(EI_SDK_FOLDER edge-impulse-sdk)
 
-#QNN     -DEI_CLASSIFIER_ENABLE_QNN_DELEGATE=1
 add_definitions(-DEI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP=1
     -DEI_CLASSIFIER_USE_FULL_TFLITE=1
     -DEI_CLASSIFIER_ENABLE_QNN_DELEGATE=1
-        -DNDEBUG
+    -DNDEBUG
 )
 
 link_directories(${CMAKE_SOURCE_DIR}/tflite/android64)
-
 #link_directories(${CMAKE_SOURCE_DIR}/tflite/android32)
 
 
@@ -85,14 +83,19 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${EI_SOURCE_FILES})
 # can link libraries from various origins, such as libraries defined in this
 # build script, prebuilt third-party libraries, or Android system libraries.
 target_link_libraries(${CMAKE_PROJECT_NAME}
-        # List libraries link to the target library
         android
         log
-        tensorflow-lite
+        -Wl,--start-group
+        libtensorflow-lite.a
         farmhash
         fft2d_fftsg
         fft2d_fftsg2d
         ruy
         XNNPACK
         cpuinfo
-        pthreadpool)
+        pthreadpool
+        absl
+        microkernels-prod
+        kleidiai
+        -Wl,--end-group
+)

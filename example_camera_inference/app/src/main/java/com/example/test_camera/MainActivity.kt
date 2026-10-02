@@ -266,9 +266,6 @@ class MainActivity : ComponentActivity() {
         return rgbByteArray
     }
 
-    // Call the C++ function to process the image and return results
-    private external fun passToCpp(imageData: ByteArray): InferenceResult?
-
     // Display results in UI
     @SuppressLint("SetTextI18n")
     private fun displayResults(result: InferenceResult?) {

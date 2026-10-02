@@ -143,7 +143,7 @@ Java_com_example_test_1cpp_MainActivity_runInference(
     jobject anomalyString = env->NewStringUTF("anomaly");
     jobject anomalyValue = env->NewObject(floatClass, floatConstructor, (jfloat)result.anomaly);
 
-    env->CallObjectMethod(anomalyResultMap, hashMapPut, anomalyString, anomnalyValue);
+    env->CallObjectMethod(anomalyResultMap, hashMapPut, anomalyString, anomalyValue);
     env->DeleteLocalRef(anomalyString);
     env->DeleteLocalRef(anomalyValue);
 #endif
